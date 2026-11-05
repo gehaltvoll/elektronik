@@ -1,9 +1,66 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="de">
 <head>
-    <title>Elektronik</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elektronik</title>
+<meta name="description" content="Interaktive Lernseiten zur Elektronik: Stromkreis, Spannung, Strom, Widerstand, LED, Schalter und ohmsches Gesetz.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400;600&family=Open+Sans:wght@400;600;700&display=swap">
+<style>
+:root{
+  --nord0:#2E3440;--nord1:#3B4252;--nord2:#434C5E;--nord3:#4C566A;--nord4:#D8DEE9;--nord5:#E5E9F0;--nord6:#ECEFF4;
+  --nord8:#88C0D0;--nord10:#5E81AC;--nord12:#D08770;--nord13:#EBCB8B;
+  --bg:var(--nord6);--surface:var(--nord5);--border:var(--nord4);--text:var(--nord0);--muted:var(--nord3);--accent:var(--nord10);--line:var(--nord0);--grid:rgba(76,86,106,.11);--head:var(--nord0);
+  --font:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"Google Sans Code",ui-monospace,"Cascadia Code",Consolas,"SF Mono",monospace;
+}
+@media (prefers-color-scheme:dark){:root{--bg:var(--nord0);--surface:var(--nord1);--border:var(--nord2);--text:var(--nord6);--muted:var(--nord4);--accent:var(--nord8);--line:var(--nord6);--grid:rgba(216,222,233,.06);--head:var(--nord2);color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:20px 20px;color:var(--text);font:400 17px/1.6 var(--font)}
+main{max-width:820px;margin:0 auto;padding-block:32px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:28px}
+main>*{min-width:0}
+header{background:var(--head);color:var(--nord6);border-radius:5px;padding:28px;display:grid;gap:10px}
+.eyebrow{font-family:var(--mono);font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+h1{margin:0;font-size:44px;font-weight:700;line-height:1.15}
+h2{margin:0;font-size:22px;font-weight:600;line-height:1.25}
+p{margin:0}
+header p{max-width:60ch;font-size:18px}
+.pages{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.page{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:18px;display:grid;gap:10px;align-content:start;color:inherit;text-decoration:none}
+.page:hover{border-color:var(--accent)}
+a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.page svg{width:84px;height:54px;display:block}
+.w{stroke:var(--line);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.topics{font-size:15px;color:var(--muted)}
+.go{color:var(--accent);font-weight:600;text-decoration:underline}
+footer{font-size:15px;color:var(--muted);max-width:68ch}
+@media (max-width:520px){h1{font-size:34px}header{padding:22px}}
+</style>
 </head>
 <body>
-    <h1>Willkommen auf meiner Elektronik-Seite!</h1>
+<main>
+  <header>
+    <span class="eyebrow">Lernseiten</span>
+    <h1>Elektronik</h1>
+    <p>Von der ersten leuchtenden LED bis zur Formel: Sie probieren alles direkt am Bildschirm aus und üben mit sofortiger Rückmeldung.</p>
+  </header>
+  <section class="pages" aria-label="Lernseiten">
+    <a class="page" href="erste-schaltkreise.html">
+      <svg viewBox="-2 -26 64 50" aria-hidden="true"><line class="w" x1="0" y1="0" x2="20" y2="0"/><line class="w" x1="40" y1="0" x2="60" y2="0"/><path class="w" d="M21 -12 L21 12 L39 0 Z" style="fill:var(--nord12)"/><line class="w" x1="39" y1="-12" x2="39" y2="12"/><path class="w" d="M31 -13 L37 -21 M33 -21 L37 -21 L37 -17 M39 -11 L45 -19 M41 -19 L45 -19 L45 -15" stroke-width="1.7"/></svg>
+      <h2>Erste Schaltkreise</h2>
+      <p>Die Einführung ohne Vorkenntnisse in zehn Kapiteln, mit Simulator und Werkstatt zum Selberbauen.</p>
+      <p class="topics">Stromkreis, Spannung, Strom, Widerstand, LED, Schalter, Reihe und parallel</p>
+      <span class="go">Einführung öffnen</span>
+    </a>
+    <a class="page" href="ohmsches-gesetz.html">
+      <svg viewBox="-2 -26 64 50" aria-hidden="true"><line class="w" x1="0" y1="0" x2="15" y2="0"/><line class="w" x1="45" y1="0" x2="60" y2="0"/><rect class="w" x="15" y="-7.5" width="30" height="15" style="fill:var(--nord13)"/></svg>
+      <h2>Das ohmsche Gesetz</h2>
+      <p>Die Formel aus einer Messreihe selbst entdecken und in sechs Stufen sicher anwenden.</p>
+      <p class="topics">U = R · I, Einheiten, Diagramme, Anwendungen, Python</p>
+      <span class="go">Lernseite öffnen</span>
+    </a>
+  </section>
+  <footer>Beginnen Sie ohne Vorwissen mit «Erste Schaltkreise». Ihr Fortschritt bleibt nur in Ihrem Browser gespeichert.</footer>
+</main>
 </body>
 </html>

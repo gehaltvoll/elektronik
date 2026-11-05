@@ -1,0 +1,879 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{min-height:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<!-- Entscheidungen:
+Einsatztyp: Lernmaterial Informatik (Elektronik-Grundlagen), Selbststudium für Klassen ohne Vorwissen, Sie-Form.
+Funktionen: voll interaktiv, Schaltkreis-Simulator im Browser (Knotenanalyse), keine echten Bauteile. Rechnen bis ohmsches Gesetz und Vorwiderstand, Reihe/parallel nur qualitativ.
+Übungen: sofortige Rückmeldung mit Erklärung, Zufallsaufgaben, Bauaufträge mit automatischer Prüfung. Fortschritt nur per localStorage.
+Varianten: A Schaltplan (technisch, Punktraster, Polar Night), B Bunt (freundlich, runde Formen, Kapitelfarben). Umschalter in der Seitenleiste.
+Annahmen: LED überlastet ab 30 mA, Lampe 12 Ohm, Farbringe der Widerstände nicht behandelt.
+-->
+<title>Erste Schaltkreise</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,400;0,600;1,400&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: linke Kapitelleiste, rechts eine Lesespalte. Pro Kapitel eine Ansicht: Idee, Ausprobieren, Merke, Üben. */
+:root{
+  --nord0:#2E3440;--nord1:#3B4252;--nord2:#434C5E;--nord3:#4C566A;--nord4:#D8DEE9;--nord5:#E5E9F0;--nord6:#ECEFF4;
+  --nord7:#8FBCBB;--nord8:#88C0D0;--nord9:#81A1C1;--nord10:#5E81AC;--nord11:#BF616A;--nord12:#D08770;--nord13:#EBCB8B;--nord14:#A3BE8C;--nord15:#B48EAD;
+  --bg:var(--nord6);--surface:var(--nord5);--surface-2:var(--nord4);--text:var(--nord0);--text-muted:var(--nord3);
+  --accent:var(--nord10);--accent-soft:var(--nord9);--ok:var(--nord14);--warn:var(--nord13);--bad:var(--nord11);--special:var(--nord15);--info:var(--nord8);
+  --board:var(--nord6);--head:var(--nord0);--dot:rgba(76,86,106,.2);
+  --font:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Google Sans Code",ui-monospace,"Cascadia Code",Consolas,"SF Mono",monospace;
+  --r:5px;--r2:3px;--h1:34px;--label-font:var(--font-mono);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:var(--nord0);--surface:var(--nord1);--surface-2:var(--nord2);--text:var(--nord6);--text-muted:var(--nord4);
+  --accent:var(--nord8);--board:var(--nord0);--head:var(--nord2);--dot:rgba(216,222,233,.13);color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:var(--nord0);--surface:var(--nord1);--surface-2:var(--nord2);--text:var(--nord6);--text-muted:var(--nord4);
+  --accent:var(--nord8);--board:var(--nord0);--head:var(--nord2);--dot:rgba(216,222,233,.13);color-scheme:dark}
+:root[data-variant="bunt"]{--r:18px;--r2:12px;--h1:44px;--label-font:var(--font)}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font:400 17px/1.6 var(--font)}
+:root[data-variant="schaltplan"] body{background-image:radial-gradient(var(--dot) 1px,transparent 1.2px);background-size:22px 22px}
+button,select,input{font:inherit;color:inherit}
+h1,h2,h3{text-wrap:balance;line-height:1.2;margin:0}
+h2{font-size:24px;font-weight:600}
+h3{font-size:18px;font-weight:600}
+p{margin:0}
+a{color:var(--accent)}
+code,.mono{font-family:var(--font-mono);font-size:.9em}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+.app{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100%}
+.side{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:100vh;overflow:auto;display:flex;flex-direction:column;gap:14px;
+  padding-block:18px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:14px;background:var(--surface);border-right:1px solid var(--surface-2)}
+:root[data-variant="schaltplan"] .side{background:var(--nord0);color:var(--nord6);border-right-color:var(--nord2);--text-muted:var(--nord4);--surface-2:var(--nord2);--surface:var(--nord1);--accent:var(--nord8);--board:var(--nord0)}
+.brand{font-weight:700;font-size:20px;line-height:1.2;display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit}
+.bar{height:8px;border-radius:9px;background:var(--surface-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok);transition:width .3s}
+.overall{font-size:13px;color:var(--text-muted);display:grid;gap:4px}
+.nav{display:grid;gap:2px;list-style:none;margin:0;padding:0}
+.nav a{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 8px;border-radius:var(--r2);text-decoration:none;color:inherit;font-size:15px;line-height:1.25}
+.nav a:hover{background:var(--surface-2)}
+.nav a[aria-current="page"]{background:var(--surface-2);font-weight:600}
+.nav .cnt{font-family:var(--font-mono);font-size:12px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.nav .cnt.full{color:var(--ok)}
+.nav svg{width:34px;height:24px;display:block}
+.nav .ico{border-radius:8px}
+:root[data-variant="bunt"] .nav .ico{background:var(--c);--line:var(--nord0)}
+.seg{display:inline-flex;justify-self:start;border:1px solid var(--surface-2);border-radius:var(--r2);overflow:hidden}
+.seg button{border:0;background:transparent;padding:4px 10px;font-size:13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface-2);font-weight:600}
+.sidefoot{margin-top:auto;display:grid;gap:10px;font-size:13px;color:var(--text-muted)}
+.linkbtn{background:none;border:0;padding:0;text-decoration:underline;cursor:pointer;font-size:13px;color:inherit;text-align:left}
+
+.main{min-width:0;padding-block:28px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.col{max-width:780px;margin:0 auto;display:grid;gap:26px}
+.col>*{min-width:0}
+.chead{padding:24px;border-radius:var(--r);background:var(--head);color:var(--nord6);display:grid;gap:8px}
+:root[data-variant="bunt"] .chead{background:var(--c);color:var(--nord0);padding:30px 28px}
+.chead h1{font-size:var(--h1);font-weight:700}
+.eyebrow{font-family:var(--label-font);font-size:13px;letter-spacing:.05em;text-transform:uppercase}
+.chead .lead{font-size:18px;max-width:60ch}
+.prose{display:grid;gap:14px;max-width:68ch}
+.prose ul,.prose ol{margin:0;padding-left:22px;display:grid;gap:6px}
+.sec{display:grid;gap:14px}
+.box{padding:14px 16px;border-radius:var(--r2);display:grid;gap:6px}
+.box b.t{font-family:var(--label-font);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.merke{background:color-mix(in srgb,var(--special) 22%,transparent);border:1px solid var(--special)}
+.achtung{background:color-mix(in srgb,var(--warn) 28%,transparent);border:1px solid var(--warn)}
+.tabwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--surface-2);vertical-align:top}
+th{font-weight:600}
+td.num{white-space:nowrap}
+.syms{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:10px}
+.syms figure{margin:0;padding:10px 6px;background:var(--surface);border-radius:var(--r2);text-align:center;font-size:14px;display:grid;gap:4px;justify-items:center}
+.syms svg{width:76px;height:50px}
+
+.panel{background:var(--surface);border-radius:var(--r);padding:16px;display:grid;gap:12px}
+.panel>*{min-width:0}
+.panel .ptitle{font-weight:600}
+.hint{font-size:15px;color:var(--text-muted)}
+.sim{display:grid;gap:10px}
+.sim .sv{overflow-x:auto}
+.sim svg.board{display:block;width:100%;margin:0 auto;background:var(--board);border-radius:var(--r2)}
+.status{font-size:15px;min-height:24px}
+.status.bad{font-weight:600}
+.w{stroke:var(--line,var(--text));stroke-width:2.4;fill:none;stroke-linecap:round}
+:root{--line:var(--nord0)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--line:var(--nord6)}}
+:root[data-theme="dark"]{--line:var(--nord6)}
+:root[data-variant="schaltplan"] .side{--line:var(--nord6)}
+.fillbg{fill:var(--board)}
+.flow{stroke:var(--accent);stroke-width:4.6;stroke-linecap:round;stroke-dasharray:0 14;fill:none;pointer-events:none}
+.glow{filter:blur(7px);pointer-events:none}
+.lbl{font-family:var(--font-mono);font-size:12px;fill:var(--text);font-variant-numeric:tabular-nums}
+.lbl.m{fill:var(--text-muted)}
+.lbl.p{fill:var(--accent);font-weight:600}
+.hit{fill:transparent;stroke:none;cursor:pointer;outline:none}
+.hit.can:hover,.hit:focus-visible{fill:color-mix(in srgb,var(--accent) 22%,transparent)}
+.hit.sel{fill:color-mix(in srgb,var(--accent) 22%,transparent);stroke:var(--accent);stroke-width:1.5}
+.hit.tog{cursor:pointer;fill:color-mix(in srgb,var(--warn) 22%,transparent)}
+.hit.tog:hover{fill:color-mix(in srgb,var(--warn) 45%,transparent)}
+.slot{stroke:var(--dot);stroke-width:2;stroke-dasharray:3 6}
+.nd{fill:var(--text-muted);opacity:.5}
+.jn{fill:var(--line)}
+.tools{display:flex;flex-wrap:wrap;gap:6px}
+.tool{display:grid;justify-items:center;gap:0;width:74px;padding:4px 2px;border:1px solid var(--surface-2);background:var(--bg);border-radius:var(--r2);cursor:pointer;font-size:12.5px;line-height:1.25}
+.tool svg{width:44px;height:28px}
+.tool[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+.insp{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;padding:10px 12px;border-radius:var(--r2);background:var(--bg);font-size:15px}
+.insp .vals{font-family:var(--font-mono);font-size:14px;font-variant-numeric:tabular-nums}
+.ctrls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.ctrls label{display:flex;gap:8px;align-items:center;font-size:15px}
+select{background:var(--bg);border:1px solid var(--surface-2);border-radius:var(--r2);padding:4px 8px}
+.btn{padding:7px 14px;border-radius:var(--r2);border:1px solid var(--accent);background:transparent;cursor:pointer;font-size:15px}
+.btn:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.btn.pri{background:var(--accent);color:var(--bg);font-weight:600}
+.btn.pri:hover{background:var(--accent-soft);color:var(--nord0)}
+.btn:disabled{opacity:.5;cursor:default}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+
+.model{display:grid;gap:12px}
+.model svg{width:100%;max-width:560px;margin:0 auto;height:auto;display:block;background:var(--board);border-radius:var(--r2)}
+.tank{fill:none;stroke:var(--line);stroke-width:2.4}
+.water{fill:var(--accent-soft);fill-opacity:.55}
+.drop{fill:var(--accent)}
+.slider{display:grid;grid-template-columns:minmax(120px,auto) minmax(0,1fr) 88px;gap:10px;align-items:center;font-size:15px}
+.slider input{width:100%;accent-color:var(--accent)}
+.slider output{font-family:var(--font-mono);text-align:right;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.tile{padding:8px 12px;background:var(--bg);border-radius:var(--r2);display:grid}
+.tile span{font-size:13px;color:var(--text-muted)}
+.tile b{font-family:var(--font-mono);font-weight:600;font-size:22px;font-variant-numeric:tabular-nums}
+.calc{font-family:var(--font-mono);font-size:15px;overflow-x:auto;white-space:nowrap;padding:6px 0}
+.tri{display:grid;grid-template-columns:minmax(0,190px) minmax(0,1fr);gap:16px;align-items:center}
+.tri svg{width:100%;height:auto}
+.tri .big{font-family:var(--font-mono);font-size:26px;font-weight:600}
+.tritext{font-family:var(--font-mono);font-size:30px;font-weight:600;fill:var(--text)}
+.tritext.off{fill:var(--accent)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.grid2>*{min-width:0}
+tr.now td{background:color-mix(in srgb,var(--warn) 32%,transparent);font-weight:600}
+
+.exs{display:grid;gap:16px}
+.ex{background:var(--surface);border-radius:var(--r);padding:16px;display:grid;gap:12px}
+.ex>*{min-width:0}
+.ex.done .exh .badge{display:inline-block}
+.exh{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.exh .tag{font-family:var(--label-font);font-size:13px;color:var(--text-muted);letter-spacing:.03em}
+.badge{display:none;font-size:13px;font-weight:600;padding:1px 9px;border-radius:99px;background:var(--ok);color:var(--nord0);white-space:nowrap}
+.opts{display:grid;gap:8px}
+.opt{text-align:left;padding:9px 13px;border-radius:var(--r2);border:1px solid var(--surface-2);background:var(--bg);cursor:pointer;line-height:1.4}
+.opt:hover{border-color:var(--accent)}
+.opt.r{background:var(--ok);border-color:var(--ok);color:var(--nord0)}
+.opt.f{background:color-mix(in srgb,var(--bad) 25%,transparent);border-color:var(--bad)}
+.fb{padding:10px 13px;border-radius:var(--r2);font-size:15.5px}
+.fb.ok{background:color-mix(in srgb,var(--ok) 28%,transparent)}
+.fb.no{background:color-mix(in srgb,var(--bad) 18%,transparent)}
+.fb.tip{background:color-mix(in srgb,var(--info) 22%,transparent)}
+.numrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.numrow input{width:130px;padding:6px 10px;border:1px solid var(--surface-2);border-radius:var(--r2);background:var(--bg);font-family:var(--font-mono)}
+.pips{display:flex;gap:5px;align-items:center;font-size:13px;color:var(--text-muted)}
+.pips i{width:13px;height:13px;border-radius:50%;border:1.5px solid var(--text-muted)}
+.pips i.on{background:var(--ok);border-color:var(--ok)}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 24px;gap:8px;align-items:center;font-size:15.5px}
+.mrow select{width:100%}
+.ttcell{min-width:64px;padding:3px 10px;border:1px solid var(--surface-2);background:var(--bg);border-radius:var(--r2);cursor:pointer}
+.symshow svg{width:110px;height:70px}
+
+.pager{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.pager a{text-decoration:none}
+.start{display:grid;gap:26px}
+.chapters{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.chapters a{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;align-items:center;padding:10px 12px;background:var(--surface);border-radius:var(--r2);text-decoration:none;color:inherit;line-height:1.3}
+.chapters a:hover{background:var(--surface-2)}
+:root[data-variant="bunt"] .chapters a{background:var(--c);color:var(--nord0);--line:var(--nord0)}
+.chapters svg{width:44px;height:30px}
+.chapters small{display:block;font-size:13px;opacity:.85}
+
+.wk{display:grid;gap:14px}
+.tasks{display:flex;flex-wrap:wrap;gap:6px}
+.task{padding:4px 11px;border-radius:99px;border:1px solid var(--surface-2);background:var(--bg);cursor:pointer;font-size:14px}
+.task[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:600}
+.task.ok::before{content:"✓ "}
+@media (max-width:960px){
+  .app{display:block}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--surface-2);padding-right:max(16px,env(safe-area-inset-right,0px));gap:10px}
+  .nav{display:flex;overflow-x:auto;gap:4px;padding-bottom:4px}
+  .nav a{display:flex;white-space:nowrap;gap:6px;padding:5px 8px}
+  .nav .ico{display:none}
+  .sidefoot{margin-top:0;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center}
+  :root{--h1:30px}
+  :root[data-variant="bunt"]{--h1:34px}
+}
+@media (max-width:520px){
+  .slider{grid-template-columns:minmax(0,1fr) 88px}
+  .slider input{grid-column:1/-1;grid-row:2}
+  .tri{grid-template-columns:minmax(0,1fr)}
+  .tri svg{max-width:190px}
+  .mrow{grid-template-columns:minmax(0,1fr) 24px}
+  .mrow select{grid-column:1;grid-row:2}
+  .mrow .mk{grid-row:1/3;grid-column:2}
+  .tool{width:68px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<script>
+document.documentElement.dataset.variant="schaltplan";
+</script>
+<script>
+/* ---------- Hilfen ---------- */
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const el=html=>{const t=document.createElement('template');t.innerHTML=html.trim();return t.content.firstElementChild};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+const rnd=(x,d=2)=>+x.toFixed(d);
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fmtI=i=>{i=Math.abs(i);if(i<5e-5)return '0 mA';if(i<1)return rnd(i*1000,i<.01?1:0)+' mA';return rnd(i,2)+' A'};
+const fmtR=r=>r>=1000?rnd(r/1000,2)+' kΩ':r+' Ω';
+const fmtU=u=>rnd(Math.abs(u),2)+' V';
+
+/* ---------- Speicher: nur Komfort, Seite läuft auch ohne ---------- */
+const KEY='erste-schaltkreise-v1';
+let S={done:{},gen:{},boards:{},variant:'schaltplan'};
+try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v)S={...S,...v}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+
+/* ---------- Bauteile und Schaltzeichen ---------- */
+const LED={rot:{n:'Rot',vf:2,c:'var(--nord11)'},gelb:{n:'Gelb',vf:2.1,c:'var(--nord13)'},gruen:{n:'Grün',vf:2.2,c:'var(--nord14)'},blau:{n:'Blau',vf:3,c:'var(--nord10)'}};
+const NAME={wire:'Draht',bat:'Batterie',res:'Widerstand',led:'LED',lamp:'Lampe',sw:'Schalter',tas:'Taster'};
+const LAMP_R=12, I_LED_MAX=.03, I_SHORT=5;
+const B=(v=9,rev)=>({t:'bat',v,rev}), R=v=>({t:'res',v}), L=(c='rot',rev)=>({t:'led',c,rev}), LA=name=>({t:'lamp',name}), SW=(on=0,name)=>({t:'sw',on:!!on,name}), TA=name=>({t:'tas',on:false,name});
+
+const ln=(a,b,extra='')=>`<line class="w" x1="${a}" y1="0" x2="${b}" y2="0" ${extra}/>`;
+function symbol(t,o={}){
+  switch(t){
+    case 'wire':return ln(0,60);
+    case 'bat':return ln(0,25)+ln(35,60)+`<line class="w" x1="25" y1="-7" x2="25" y2="7" stroke-width="5"/><line class="w" x1="35" y1="-16" x2="35" y2="16"/>`;
+    case 'res':return ln(0,15)+ln(45,60)+`<rect class="w fillbg" x="15" y="-7.5" width="30" height="15"/>`;
+    case 'lamp':{const g=o.b||0;return ln(0,16)+ln(44,60)+(g?`<circle class="glow" cx="30" cy="0" r="22" style="fill:var(--nord13)" opacity="${.3+.7*g}"/>`:'')+
+      `<circle class="w" cx="30" cy="0" r="14" style="fill:${g?'var(--nord13)':'var(--board)'}" fill-opacity="${g?.35+.65*g:1}"/><line class="w" x1="20" y1="-10" x2="40" y2="10"/><line class="w" x1="20" y1="10" x2="40" y2="-10"/>`}
+    case 'led':{const c=LED[o.c||'rot'].c,g=o.b||0,dead=o.dead;return ln(0,20)+ln(40,60)+(g?`<circle class="glow" cx="30" cy="0" r="24" style="fill:${c}" opacity="${.3+.7*g}"/>`:'')+
+      `<path class="w" d="M21 -12 L21 12 L39 0 Z" style="fill:${c}" fill-opacity="${dead?0:g?1:.3}" ${dead?'stroke-dasharray="3 3"':''}/><line class="w" x1="39" y1="-12" x2="39" y2="12"/>`+
+      `<path class="w" d="M31 -13 L37 -21 M33 -21 L37 -21 L37 -17 M39 -11 L45 -19 M41 -19 L45 -19 L45 -15" stroke-width="1.7"/>`+
+      (dead?`<path d="M18 -14 L42 14 M42 -14 L18 14" fill="none" stroke-width="3.6" stroke-linecap="round" style="stroke:var(--nord11)"/>`:'')}
+    case 'sw':return ln(0,18)+ln(42,60)+`<circle class="jn" cx="18" cy="0" r="3"/><circle class="jn" cx="42" cy="0" r="3"/>`+(o.on?`<line class="w" x1="18" y1="0" x2="42" y2="0"/>`:`<line class="w" x1="18" y1="0" x2="40" y2="-15"/>`);
+    case 'tas':return ln(0,18)+ln(42,60)+`<circle class="jn" cx="18" cy="0" r="3"/><circle class="jn" cx="42" cy="0" r="3"/>`+(o.on?`<line class="w" x1="16" y1="-3" x2="44" y2="-3"/><line class="w" x1="30" y1="-3" x2="30" y2="-17"/>`:`<line class="w" x1="16" y1="-11" x2="44" y2="-11"/><line class="w" x1="30" y1="-11" x2="30" y2="-23"/>`)+`<line class="w" x1="24" y1="-23" x2="36" y2="-23"/>`.replace(/-23/g,o.on?'-17':'-23');
+  }return ''
+}
+const icon=(t,o={})=>`<svg viewBox="-2 -25 64 50" aria-hidden="true">${symbol(t,o)}</svg>`;
+
+/* ---------- Spielbrett ---------- */
+const ends=k=>{const [c,r]=k.slice(1).split('_').map(Number);return k[0]==='h'?[[c,r],[c+1,r]]:[[c,r],[c,r+1]]};
+const clone=b=>JSON.parse(JSON.stringify(b));
+function ring(w,h,o={}){
+  const x=o.x||0,y=o.y||0,els={};
+  const put=(k,e,back)=>{if(e===0)return;const n=e?{...e}:{t:'wire'};if(n.t==='bat'||n.t==='led'){n.flip=(!!n.rev)!==back}delete n.rev;els[k]=n};
+  for(let i=0;i<w;i++)put(`h${x+i}_${y}`,(o.t||{})[i],false);
+  for(let i=0;i<h;i++)put(`v${x+w}_${y+i}`,(o.r||{})[i],false);
+  for(let i=0;i<w;i++)put(`h${x+w-1-i}_${y+h}`,(o.b||{})[i],true);
+  for(let i=0;i<h;i++)put(`v${x}_${y+h-1-i}`,(o.l||{})[i],true);
+  Object.entries(o.e||{}).forEach(([k,e])=>{els[k]=e?{...e}:{t:'wire'};delete els[k].rev});
+  return{cols:o.cols||w+2*x,rows:o.rows||h+2*y,els};
+}
+
+/* ---------- Löser: Knotenanalyse mit stückweise linearer LED ---------- */
+const G_WIRE=100,G_BAT=20,G_LED=1,G_OFF=1e-9,G_MIN=1e-9;
+function gauss(A,b){const n=b.length;
+  for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(A[r][i])>Math.abs(A[p][i]))p=r;
+    [A[i],A[p]]=[A[p],A[i]];[b[i],b[p]]=[b[p],b[i]];const d=A[i][i]||1e-30;
+    for(let r=i+1;r<n;r++){const f=A[r][i]/d;if(!f)continue;for(let c=i;c<n;c++)A[r][c]-=f*A[i][c];b[r]-=f*b[i]}}
+  const x=new Array(n).fill(0);for(let i=n-1;i>=0;i--){let s=b[i];for(let c=i+1;c<n;c++)s-=A[i][c]*x[c];x[i]=s/(A[i][i]||1e-30)}return x}
+function solve(b){
+  const id={},list=[];let n=0;
+  const nid=p=>{const s=p.join(',');return id[s]??(id[s]=n++)};
+  for(const[k,e]of Object.entries(b.els)){let[p,q]=ends(k);if(e.flip)[p,q]=[q,p];list.push({k,e,a:nid(p),b:nid(q)})}
+  const on={};let x=new Array(n).fill(0);
+  const cond=it=>{const{e}=it;switch(e.t){case'wire':return G_WIRE;case'res':return 1/e.v;case'lamp':return 1/LAMP_R;case'bat':return G_BAT;
+    case'sw':case'tas':return e.on?G_WIRE:0;case'led':return e.dead?0:on[it.k]?G_LED:G_OFF}};
+  for(let iter=0;iter<40;iter++){
+    const A=Array.from({length:n},(_, i)=>{const r=new Array(n).fill(0);r[i]=G_MIN;return r}),z=new Array(n).fill(0);
+    for(const it of list){const g=cond(it);if(!g)continue;A[it.a][it.a]+=g;A[it.b][it.b]+=g;A[it.a][it.b]-=g;A[it.b][it.a]-=g;
+      if(it.e.t==='bat'){const s=it.e.v*G_BAT;z[it.b]+=s;z[it.a]-=s}
+      if(it.e.t==='led'&&on[it.k]){const s=LED[it.e.c].vf*G_LED;z[it.a]+=s;z[it.b]-=s}}
+    x=gauss(A,z);let ch=false;
+    for(const it of list)if(it.e.t==='led'&&!it.e.dead){const d=x[it.a]-x[it.b],vf=LED[it.e.c].vf;
+      if(!on[it.k]&&d>vf+1e-9){on[it.k]=true;ch=true}else if(on[it.k]&&d-vf<-1e-9){on[it.k]=false;ch=true}}
+    if(!ch)break}
+  const out={},r={by:out,short:false,maxBat:0,any:false,hasBat:false};
+  for(const it of list){const d=x[it.a]-x[it.b],g=cond(it),{e}=it;let I=0;
+    if(e.t==='bat'){I=(e.v+d)*G_BAT;r.hasBat=true;r.maxBat=Math.max(r.maxBat,Math.abs(I));if(Math.abs(I)>I_SHORT)r.short=true}
+    else if(e.t==='led')I=on[it.k]?(d-LED[e.c].vf)*G_LED:0;else I=d*g;
+    if(Math.abs(I)<1e-6)I=0;if(I)r.any=true;out[it.k]={I,U:Math.abs(d)}}
+  return r}
+function settle(b){let r=solve(b),fresh=false;
+  for(let i=0;i<20;i++){let c=false;for(const[k,e]of Object.entries(b.els))if(e.t==='led'&&!e.dead&&Math.abs(r.by[k].I)>I_LED_MAX){e.dead=true;c=true;fresh=true}
+    if(!c)break;r=solve(b)}
+  r.fresh=fresh;return r}
+const lampB=I=>clamp(Math.sqrt(I*I*LAMP_R/6.75),0,1);
+const ledB=I=>I<5e-4?0:clamp(.25+.75*I/.02,0,1);
+const isLit=(e,q)=>e.t==='lamp'?Math.abs(q.I)>.03:e.t==='led'?q.I>5e-4:false;
+function outcome(board){const b=clone(board),r=settle(b);const es=Object.entries(b.els);
+  if(es.some(([k,e])=>e.t==='led'&&e.dead))return'kaputt';
+  return es.some(([k,e])=>isLit(e,r.by[k]))?'an':'aus'}
+
+/* ---------- Darstellung einer Schaltung ---------- */
+const ACTIVE=new Set();let SIMID=0;
+const CELL=60,PAD=34;
+class Sim{
+  constructor(board,o={}){this.b=board;this.o=o;this.id=o.id||'sim'+(++SIMID);this.frozen=!!o.frozen;this.tool='hand';this.sel=null;this.t=0;
+    this.root=el('<div class="sim"></div>');this.bind();this.draw();ACTIVE.add(this)}
+  pos([c,r]){return[PAD+c*CELL,PAD+r*CELL]}
+  allEdges(){const a=[],{cols,rows}=this.b;for(let r=0;r<=rows;r++)for(let c=0;c<cols;c++)a.push(`h${c}_${r}`);for(let c=0;c<=cols;c++)for(let r=0;r<rows;r++)a.push(`v${c}_${r}`);return a}
+  label(k,e){let[p,q]=ends(k).map(n=>this.pos(n));const mx=(p[0]+q[0])/2,my=(p[1]+q[1])/2,hz=k[0]==='h';
+    const t=e.t==='bat'?e.v+' V':e.t==='res'?fmtR(e.v):e.name||(e.t==='led'?LED[e.c].n:'');if(!t)return'';
+    if(hz)return`<text class="lbl" x="${mx}" y="${my-(e.t==='led'?26:e.t==='bat'||e.t==='lamp'?20:e.t==='tas'?30:e.t==='sw'?20:14)}" text-anchor="middle">${t}</text>`;
+    const last=+k.slice(1).split('_')[0]===this.b.cols;
+    return`<text class="lbl" x="${mx+(last?-24:24)}" y="${my+4}" text-anchor="${last?'end':'start'}">${t}</text>`}
+  draw(){
+    const{b,o}=this,w=b.cols*CELL+2*PAD,hh=b.rows*CELL+2*PAD,focus=this.root.contains(document.activeElement)?document.activeElement.dataset.k:null;
+    const r=this.frozen?null:settle(b);this.r=r;let s='',hit='',flow='';
+    if(o.edit){for(const k of this.allEdges())if(!b.els[k]){const[p,q]=ends(k).map(n=>this.pos(n));s+=`<line class="slot" x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}"/>`}
+      for(let c=0;c<=b.cols;c++)for(let y=0;y<=b.rows;y++){const[px,py]=this.pos([c,y]);s+=`<circle class="nd" cx="${px}" cy="${py}" r="3"/>`}}
+    const deg={};
+    for(const[k,e]of Object.entries(b.els)){let[p,q]=ends(k);deg[p]=(deg[p]||0)+1;deg[q]=(deg[q]||0)+1;
+      let[ax,ay]=this.pos(p),[bx,by]=this.pos(q);if(e.flip)[ax,ay,bx,by]=[bx,by,ax,ay];
+      const ang=Math.round(Math.atan2(by-ay,bx-ax)*180/Math.PI),q2=r?r.by[k]:{I:0,U:0};
+      const st={on:e.on,c:e.c,dead:e.dead,b:r?(e.t==='lamp'?lampB(q2.I):e.t==='led'?ledB(q2.I):0):0};
+      s+=`<g transform="translate(${ax} ${ay}) rotate(${ang})">${symbol(e.t,st)}</g>`+this.label(k,e);
+      if(e.t==='bat'&&!o.nopol){const ux=(bx-ax)/60,uy=(by-ay)/60,px=ax+ux*44-uy*-16+(uy?12*(ux||1):0),py=ay+uy*44+ux*-16;const hx=ux?ax+ux*46:ax-15,hy=ux?ay-13:ay+uy*46;s+=`<text class="lbl" x="${hx}" y="${hy+4}" text-anchor="middle">+</text>`}
+      if(q2.I&&!e.dead){const sp=clamp(30+34*Math.log10(Math.abs(q2.I)/.001),12,150)*Math.sign(q2.I);flow+=`<line class="flow" data-s="${sp}" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}"/>`}
+    }
+    for(const[p,n]of Object.entries(deg))if(n>=3){const[x,y]=this.pos(p.split(',').map(Number));s+=`<circle class="jn" cx="${x}" cy="${y}" r="4"/>`}
+    (o.probes||[]).forEach(pr=>{const[p,q]=ends(pr.k).map(n=>this.pos(n)),mx=(p[0]+q[0])/2,my=(p[1]+q[1])/2,I=r?r.by[pr.k].I:0,val=pr.hide?'?':fmtI(I);
+      s+=pr.k[0]==='h'?`<text class="lbl p" x="${mx}" y="${my+(pr.below?20:-11)}" text-anchor="middle">${pr.n}: ${val}</text>`:`<text class="lbl p" x="${mx+10}" y="${my+4}">${pr.n}: ${val}</text>`});
+    const keys=o.edit?this.allEdges():Object.keys(b.els).filter(k=>['sw','tas'].includes(b.els[k].t)&&!o.locked);
+    for(const k of keys){const[p,q]=ends(k).map(n=>this.pos(n)),hz=k[0]==='h',x=hz?p[0]+9:p[0]-21,y=hz?p[1]-21:p[1]+9,e=b.els[k],live=!this.frozen&&e&&['sw','tas'].includes(e.t);
+      const nm=e?NAME[e.t]+(e.name?' '+e.name:'')+(e.t==='sw'?(e.on?', geschlossen':', offen'):''):'leeres Feld, Reihe '+(+k.split('_')[1]+1);
+      hit+=`<rect class="hit ${o.edit?'can':''} ${!o.edit&&live?'tog':''} ${this.sel===k?'sel':''}" data-k="${k}" tabindex="0" role="button" aria-label="${nm}" x="${x}" y="${y}" width="${hz?42:42}" height="${hz?42:42}" rx="6"/>`}
+    const edit=o.edit?this.toolbar():'',insp=o.edit?this.inspector():'';
+    this.root.innerHTML=`${edit}<div class="sv"><svg class="board" viewBox="0 0 ${w} ${hh}" style="max-width:${Math.round(w*(o.scale||1.15))}px;${o.edit&&this.tool!=='hand'&&['wire','erase'].includes(this.tool)?'touch-action:none':''}" role="img" aria-label="${o.alt||'Schaltung'}">${s}${flow}${hit}</svg></div>${o.nostatus?'':`<div class="status ${r&&(r.short||this.anyDead())?'bad':''}" role="status">${this.status()}</div>`}${insp}`;
+    this.flows=$$('.flow',this.root).map(f=>({f,s:+f.dataset.s}));
+    if(focus){const f=$(`[data-k="${focus}"]`,this.root);f&&f.focus({preventScroll:true})}
+    this.tickNow();o.onchange&&o.onchange(this)}
+  anyDead(){return Object.values(this.b.els).some(e=>e.dead)}
+  status(){const r=this.r;if(!r)return'';
+    if(this.anyDead())return'✕ LED durchgebrannt: Es floss mehr als 30 mA. Bauen Sie einen grösseren Widerstand ein und setzen Sie eine neue LED ein.';
+    if(r.short)return`⚠ Kurzschluss: Der Strom fliesst fast ohne Widerstand (${fmtI(r.maxBat)}). Die Batterie und die Drähte würden heiss.`;
+    if(!r.hasBat)return this.o.edit?'Setzen Sie eine Batterie ein.':'';
+    if(!r.any)return'Kein Strom: Der Kreis ist offen, oder eine LED sperrt.';
+    return`Strom aus der Batterie: ${fmtI(r.maxBat)}`}
+  toolbar(){const T=[['hand','Bedienen',''],['wire','Draht','wire'],['bat','Batterie','bat'],['res','Widerstand','res'],['led','LED','led'],['lamp','Lampe','lamp'],['sw','Schalter','sw'],['tas','Taster','tas'],['erase','Entfernen','']];
+    const hand=`<svg viewBox="0 0 60 38" aria-hidden="true"><path class="w" d="M24 32 L24 8 L29 6 L31 18 L42 20 L40 32 Z"/></svg>`,er=`<svg viewBox="0 0 60 38" aria-hidden="true"><path class="w" d="M20 8 L40 30 M40 8 L20 30"/></svg>`;
+    return`<div class="tools" role="group" aria-label="Werkzeuge">${T.map(([t,n,i])=>`<button type="button" class="tool" data-tool="${t}" aria-pressed="${this.tool===t}">${t==='hand'?hand:t==='erase'?er:`<svg viewBox="-2 -25 64 50" aria-hidden="true">${symbol(i,{c:'rot'})}</svg>`}${n}</button>`).join('')}</div>`}
+  inspector(){const k=this.sel,e=k&&this.b.els[k];if(!e)return`<div class="insp hint">${this.tool==='hand'?'Tippen Sie auf ein Bauteil, um Werte zu sehen und zu ändern. Schalter schalten Sie direkt.':this.tool==='wire'?'Tippen oder ziehen Sie über die Felder, um Draht zu legen. Nochmals tippen entfernt ihn.':this.tool==='erase'?'Tippen oder ziehen Sie über Bauteile, um sie zu entfernen.':'Tippen Sie auf ein Feld zwischen zwei Punkten, um das Bauteil einzusetzen.'}</div>`;
+    const q=this.r?this.r.by[k]:{I:0,U:0};let c='';const sid=`${this.id}-v`;
+    if(e.t==='bat')c=`<label>Spannung <select id="${sid}" data-a="v">${[1.5,3,4.5,5,6,9,12].map(v=>`<option value="${v}" ${v===e.v?'selected':''}>${v} V</option>`).join('')}</select></label>`;
+    if(e.t==='res')c=`<label>Wert <select id="${sid}" data-a="v">${[10,47,100,150,220,330,470,680,1000,2200,4700,10000].map(v=>`<option value="${v}" ${v===e.v?'selected':''}>${fmtR(v)}</option>`).join('')}</select></label>`;
+    if(e.t==='led')c=`<label>Farbe <select id="${sid}" data-a="c">${Object.entries(LED).map(([v,l])=>`<option value="${v}" ${v===e.c?'selected':''}>${l.n} (${l.vf} V)</option>`).join('')}</select></label>`;
+    return`<div class="insp"><b>${NAME[e.t]}</b><span class="vals">${fmtU(q.U)} · ${fmtI(q.I)}</span>${c}${e.t==='bat'||e.t==='led'?`<button type="button" class="btn" data-a="flip">Umdrehen</button>`:''}${e.dead?`<button type="button" class="btn pri" data-a="fresh">Neue LED einsetzen</button>`:''}${e.t==='wire'?'':''}<button type="button" class="btn" data-a="del">Entfernen</button></div>`}
+  place(k,t){const d={wire:{t:'wire'},bat:B(9),res:R(1000),led:L('rot'),lamp:LA(),sw:SW(0),tas:TA()}[t];const e={...d};if(e.rev===undefined)delete e.rev;if(!e.name)delete e.name;this.b.els[k]=e}
+  act(k){const e=this.b.els[k],t=this.tool;
+    if(!this.o.edit||t==='hand'){if(e&&e.t==='sw'&&!this.frozen)e.on=!e.on;if(this.o.edit)this.sel=e?k:null;this.draw();return}
+    if(t==='erase'){delete this.b.els[k];this.sel=null}
+    else if(t==='wire'){if(e&&e.t==='wire')delete this.b.els[k];else this.place(k,'wire')}
+    else{if(!e||e.t!==t)this.place(k,t);this.sel=k}
+    this.draw()}
+  bind(){const R=this.root;let paint=null;
+    R.addEventListener('pointerdown',ev=>{const h=ev.target.closest('[data-k]');if(!h)return;const k=h.dataset.k,e=this.b.els[k];
+      if(e&&e.t==='tas'&&!this.frozen&&(!this.o.edit||this.tool==='hand')){e.on=true;this.draw();const up=()=>{e.on=false;this.draw();removeEventListener('pointerup',up);removeEventListener('pointercancel',up)};addEventListener('pointerup',up);addEventListener('pointercancel',up);return}
+      if(this.o.edit&&(this.tool==='wire'||this.tool==='erase')){ev.preventDefault();paint={tool:this.tool,del:this.tool==='erase'||(e&&e.t==='wire'),seen:new Set([k])};this.act(k)}});
+    R.addEventListener('pointermove',ev=>{if(!paint)return;const t=document.elementFromPoint(ev.clientX,ev.clientY),h=t&&t.closest&&t.closest('[data-k]');if(!h||!R.contains(h))return;const k=h.dataset.k;if(paint.seen.has(k))return;paint.seen.add(k);
+      if(paint.del){if(this.b.els[k]&&(paint.tool==='erase'||this.b.els[k].t==='wire')){delete this.b.els[k];this.draw()}}else if(!this.b.els[k]){this.place(k,'wire');this.draw()}});
+    addEventListener('pointerup',()=>{paint=null});
+    R.addEventListener('click',ev=>{const tb=ev.target.closest('[data-tool]');if(tb){this.tool=tb.dataset.tool;this.sel=null;this.draw();return}
+      const a=ev.target.closest('button[data-a]');if(a){const e=this.b.els[this.sel];if(!e)return;({flip:()=>{e.flip=!e.flip},fresh:()=>{delete e.dead},del:()=>{delete this.b.els[this.sel];this.sel=null}})[a.dataset.a]();this.draw();return}
+      const h=ev.target.closest('[data-k]');if(!h)return;const k=h.dataset.k,e=this.b.els[k];if(e&&e.t==='tas')return;if(this.o.edit&&(this.tool==='wire'||this.tool==='erase'))return;this.act(k)});
+    R.addEventListener('change',ev=>{const a=ev.target.dataset.a;if(!a)return;const e=this.b.els[this.sel];if(!e)return;e[a]=a==='v'?+ev.target.value:ev.target.value;this.draw()});
+    R.addEventListener('keydown',ev=>{const h=ev.target.closest&&ev.target.closest('[data-k]');if(!h||(ev.key!=='Enter'&&ev.key!==' '))return;ev.preventDefault();const k=h.dataset.k,e=this.b.els[k];if(e&&e.t==='tas'&&(!this.o.edit||this.tool==='hand')){if(!e.on){e.on=true;this.draw()}return}this.act(k)});
+    R.addEventListener('keyup',ev=>{const h=ev.target.closest&&ev.target.closest('[data-k]');if(!h)return;const e=this.b.els[h.dataset.k];if(e&&e.t==='tas'&&e.on){e.on=false;this.draw()}})}
+  reveal(){this.frozen=false;this.draw()}
+  tickNow(){if(!this.flows)return;for(const{f,s}of this.flows)f.style.strokeDashoffset=-((this.t*s)%14)}
+  tick(dt){this.t+=dt;this.tickNow()}
+}
+let last=0;function loop(t){const dt=Math.min(.05,(t-last)/1000||0);last=t;if(!REDUCED)ACTIVE.forEach(a=>a.tick(dt));requestAnimationFrame(loop)}
+
+/* ---------- Wassermodell ---------- */
+const RSET=[10,22,47,100,150,220,330,470,680,1000,2200,4700,10000];
+class Model{
+  constructor(o={}){this.o={u:9,r:470,su:true,sr:true,rs:RSET,...o};this.u=this.o.u;this.r=this.o.r;this.id='m'+(++SIMID);const o2=this.o;
+    this.drops=Array.from({length:18},(_, i)=>({x:120+i*17.5,f:(i*7%18)/9-.9}));
+    const ri=o2.rs.indexOf(this.r);
+    this.root=el(`<div class="model">
+      <svg viewBox="0 0 440 200" role="img" aria-label="Wassermodell: Tank, Rohr und Engstelle">
+        <path class="tank" d="M26 26 L26 170 L118 170 L118 150 M118 170 L118 170 M118 150 L118 26"/>
+        <rect class="water" data-w="tank" x="27" y="30" width="90" height="139"/>
+        <g data-w="ticks"></g>
+        <path class="water" data-w="pipe"/><path class="tank" data-w="pipeo"/><g data-w="dr"></g>
+        <text class="lbl m" x="72" y="16" text-anchor="middle">Höhe = Spannung</text>
+        <text class="lbl m" x="270" y="120" text-anchor="middle">Engstelle = Widerstand</text>
+        <text class="lbl m" x="378" y="196" text-anchor="middle">Fluss = Strom</text>
+      </svg>
+      ${o2.su?`<div class="slider"><label for="${this.id}u">Spannung U</label><input id="${this.id}u" type="range" min="0" max="12" step="0.5" value="${this.u}"><output data-o="u"></output></div>`:''}
+      ${o2.sr?`<div class="slider"><label for="${this.id}r">Widerstand R</label><input id="${this.id}r" type="range" min="0" max="${o2.rs.length-1}" step="1" value="${ri}"><output data-o="r"></output></div>`:''}
+      <div class="tiles"><div class="tile"><span>Spannung U</span><b data-t="u"></b></div><div class="tile"><span>Widerstand R</span><b data-t="r"></b></div><div class="tile"><span>Strom I</span><b data-t="i"></b></div></div>
+      ${o2.calc?'<div class="calc" data-t="calc"></div>':''}
+      ${o2.diagram?`<svg viewBox="0 0 440 240" role="img" aria-label="Diagramm Strom gegen Spannung" data-w="dg"></svg>`:''}
+    </div>`);
+    this.circ=$$('[data-w="dr"]',this.root)[0];
+    this.circ.innerHTML=this.drops.map(()=>'<circle class="drop" r="3"/>').join('');this.cs=[...this.circ.children];
+    let tk='';for(let v=0;v<=12;v+=3){const y=170-v/12*140;tk+=`<line class="w" x1="118" y1="${y}" x2="110" y2="${y}" stroke-width="1.4"/><text class="lbl m" x="106" y="${y+4}" text-anchor="end">${v} V</text>`}
+    $('[data-w="ticks"]',this.root).innerHTML=tk;
+    if(o2.su)$(`#${this.id}u`,this.root).oninput=e=>{this.u=+e.target.value;this.up()};
+    if(o2.sr)$(`#${this.id}r`,this.root).oninput=e=>{this.r=o2.rs[+e.target.value];this.up()};
+    this.up();ACTIVE.add(this)}
+  half(x){const n=this.neck;if(x<225||x>315)return 10;if(x>=245&&x<=295)return n;const t=x<245?(x-225)/20:(315-x)/20;return n+(10-n)*(1-t)}
+  up(){const{u,r}=this,I=u/r;this.neck=clamp(9-(Math.log10(r)-1)/3*7.5,1.5,9);const R=this.root;
+    const h=u/12*140;const tk=$('[data-w="tank"]',R);tk.setAttribute('y',170-h);tk.setAttribute('height',h);
+    const n=this.neck,tp=`M118 150 L225 150 L245 ${160-n} L295 ${160-n} L315 150 L424 150`,bt=`M424 170 L315 170 L295 ${160+n} L245 ${160+n} L225 170 L118 170`;
+    $('[data-w="pipe"]',R).setAttribute('d',tp+' L424 170'+bt.slice(9)+' Z');$('[data-w="pipeo"]',R).setAttribute('d',tp+' '+bt);
+    this.v=I>0?clamp(70+42*Math.log10(I/.01),8,240):0;
+    const t=(s,v)=>{const e=$(`[data-t="${s}"]`,R);if(e)e.textContent=v},ou=$('[data-o="u"]',R),or=$('[data-o="r"]',R);
+    t('u',rnd(u,1)+' V');t('r',fmtR(r));t('i',fmtI(I));if(ou)ou.textContent=rnd(u,1)+' V';if(or)or.textContent=fmtR(r);
+    t('calc',`I = U / R = ${rnd(u,1)} V / ${r} Ω = ${rnd(I,4)} A = ${rnd(I*1000,1)} mA`);
+    const d=$('[data-w="dg"]',R);if(d){const X=v=>50+v/12*360,Y=m=>205-m/120*180;let g='';
+      for(let m=0;m<=120;m+=40)g+=`<line x1="50" y1="${Y(m)}" x2="410" y2="${Y(m)}" style="stroke:var(--dot)"/><text class="lbl m" x="44" y="${Y(m)+4}" text-anchor="end">${m}</text>`;
+      for(let v=0;v<=12;v+=3)g+=`<text class="lbl m" x="${X(v)}" y="222" text-anchor="middle">${v}</text>`;
+      g+=`<text class="lbl m" x="50" y="14">I in mA</text><text class="lbl m" x="410" y="238" text-anchor="end">U in V</text>`;
+      g+=`<line class="w" x1="50" y1="${Y(0)}" x2="${X(12)}" y2="${Y(1200/r)}"/><circle cx="${X(u)}" cy="${Y(I*1000)}" r="6" style="fill:var(--nord12)"/>`;d.innerHTML=g}
+    this.o.onchange&&this.o.onchange(this)}
+  tick(dt){this.drops.forEach((p,i)=>{p.x+=this.v*dt*(10/this.half(p.x))**.5;if(p.x>424)p.x=120;const c=this.cs[i];c.setAttribute('cx',p.x);c.setAttribute('cy',160+p.f*this.half(p.x));c.setAttribute('opacity',this.u>0?1:.25)})}
+}
+
+/* ---------- Vorlagen für Schaltungen ---------- */
+const P={
+  ok:()=>ring(3,1,{l:{0:B(9)},r:{0:LA()}}),
+  gap:()=>ring(3,1,{l:{0:B(9)},r:{0:LA()},b:{1:0}}),
+  swOpen:()=>ring(3,1,{l:{0:B(9)},t:{1:SW(0)},r:{0:LA()}}),
+  swClosed:()=>ring(3,1,{l:{0:B(9)},t:{1:SW(1)},r:{0:LA()}}),
+  samePole:()=>({cols:3,rows:1,els:{v0_0:{...B(9),flip:true},h0_0:{t:'wire'},h1_0:{t:'lamp'},v2_0:{t:'wire'},h1_1:{t:'wire'},v1_0:{t:'wire'}}}),
+  batRev:()=>ring(3,1,{l:{0:B(9,true)},r:{0:LA()}}),
+  twoBatOpp:()=>ring(3,1,{l:{0:B(9)},r:{0:B(9,true)},t:{1:LA()}}),
+  ledOk:()=>ring(3,1,{l:{0:B(9)},t:{1:R(470)},r:{0:L('rot')}}),
+  ledRev:()=>ring(3,1,{l:{0:B(9)},t:{1:R(470)},r:{0:L('rot',true)}}),
+  ledNoR:()=>ring(3,1,{l:{0:B(9)},r:{0:L('rot')}}),
+  led15:()=>ring(3,1,{l:{0:B(1.5)},t:{1:R(100)},r:{0:L('rot')}}),
+  ledBlau3:()=>ring(3,1,{l:{0:B(3)},t:{1:R(1000)},r:{0:L('blau')}}),
+  ledHuge:()=>ring(3,1,{l:{0:B(9)},t:{1:R(47)},r:{0:L('gruen')}}),
+  serOpen:()=>ring(4,1,{l:{0:B(9)},t:{1:SW(1,'S1'),2:SW(0,'S2')},r:{0:LA()}}),
+  serClosed:()=>ring(4,1,{l:{0:B(9)},t:{1:SW(1,'S1'),2:SW(1,'S2')},r:{0:LA()}}),
+  par:(a,b)=>ring(3,2,{l:{1:B(9)},t:{1:SW(a,'S1')},r:{0:LA()},e:{v1_0:null,v2_0:null,h1_1:SW(b,'S2')}}),
+  bypass:(on)=>ring(3,2,{l:{1:B(9)},t:{1:R(470)},r:{0:L('gruen')},e:{v2_0:null,h2_1:SW(on,'S')}}),
+  lampSer:(on=1)=>ring(3,1,{l:{0:B(9)},t:{0:LA('A'),1:LA('B'),2:SW(on,'S')}}),
+  lampPar:(on=1)=>ring(3,2,{l:{1:B(9)},r:{0:LA('B'),1:SW(on,'S')},e:{v1_0:LA('A'),v1_1:null}}),
+  mixed:()=>ring(3,2,{l:{1:B(9)},t:{0:LA('A')},r:{0:LA('C')},e:{v1_0:null,v1_1:LA('B')}}),
+  threeLed:()=>ring(4,1,{l:{0:B(5)},t:{0:R(100),1:L('rot'),2:L('rot'),3:L('rot')}}),
+  twoLedSer:()=>ring(4,1,{l:{0:B(9)},t:{0:R(330),1:L('rot'),2:L('rot')}}),
+  probe:()=>ring(4,1,{l:{0:B(9)},t:{0:null,1:null,2:LA(),3:null}}),
+};
+
+/* ---------- Kapitel ---------- */
+const CH=[];
+const chapter=c=>CH.push(c);
+const YESNO=[['Die Lampe leuchtet','an'],['Die Lampe bleibt dunkel','aus']];
+const YESLED=[['Die LED leuchtet','an'],['Die LED bleibt dunkel','aus'],['Die LED brennt durch','kaputt']];
+
+chapter({id:'stromkreis',n:'Der Stromkreis',s:'Warum es einen Kreis braucht',ico:'lamp',c:'var(--nord8)',
+lead:'Strom fliesst nur, wenn er einen geschlossenen Weg findet: von der Batterie durch die Lampe wieder zurück zur Batterie.',
+html:`
+<div class="prose"><p>Eine Batterie allein tut nichts. Eine Lampe allein auch nicht. Erst wenn beide über zwei Drähte zu einem Ring verbunden sind, passiert etwas. Diesen Ring nennt man <b>Stromkreis</b>.</p>
+<p>Jeder Stromkreis hat drei Teile:</p>
+<ul><li><b>Quelle:</b> Die Batterie treibt den Strom an.</li><li><b>Verbraucher:</b> Die Lampe wandelt elektrische Energie in Licht und Wärme um.</li><li><b>Leitung:</b> Die Drähte verbinden alles.</li></ul>
+<p>Ein Schalter unterbricht den Ring an einer Stelle. Der Strom stoppt dann im ganzen Kreis.</p></div>
+<div class="panel"><div class="ptitle">Probieren Sie es aus</div><div class="hint">Tippen Sie auf den gelb markierten Schalter. Die Punkte zeigen, wo Strom fliesst.</div><div data-w="kreis"></div></div>
+<div class="sec"><h2>Schaltzeichen</h2><div class="prose"><p>Damit man Schaltungen schnell zeichnen kann, hat jedes Bauteil ein Zeichen. Diese Zeichen sehen Sie in allen Schaltungen dieser Seite.</p></div><div data-w="syms"></div></div>
+<div class="box merke"><b class="t">Merke</b><p>Strom braucht einen geschlossenen Kreis. Ist der Kreis an einer Stelle offen, fliesst nirgends Strom.</p></div>`,
+ex:[
+ {t:'pred',q:'Leuchtet die Lampe in dieser Schaltung?',sim:P.ok,o:YESNO,why:'Der Weg führt vom Pluspol durch die Lampe zurück zum Minuspol. Der Kreis ist geschlossen.'},
+ {t:'pred',q:'Unten fehlt ein Stück Draht. Was passiert?',sim:P.gap,o:YESNO,why:'Der Kreis hat eine Lücke. Ohne geschlossenen Weg fliesst kein Strom, auch nicht im Teil vor der Lücke.'},
+ {t:'pred',q:'Der Schalter steht offen. Was passiert?',sim:P.swOpen,o:YESNO,why:'Ein offener Schalter ist wie eine Lücke im Draht.'},
+ {t:'pred',q:'Beide Enden der Lampe hängen am Pluspol. Der Minuspol ist nicht verbunden. Was passiert?',sim:P.samePole,o:YESNO,why:'Der Strom muss von Plus nach Minus. Hier gibt es keinen Weg zum Minuspol.'},
+ {t:'pred',q:'Die Batterie ist umgekehrt eingebaut. Was passiert mit der Lampe?',sim:P.batRev,o:YESNO,why:'Einer Lampe ist die Richtung egal. Der Strom fliesst jetzt andersherum, sie leuchtet gleich hell.'},
+ {t:'pred',q:'Zwei gleiche Batterien sind so eingebaut, dass sie gegeneinander arbeiten. Was passiert?',sim:P.twoBatOpp,o:YESNO,why:'Beide drücken gleich stark gegeneinander. Sie heben sich auf, und es fliesst kein Strom.'},
+ {t:'mc',q:'Was macht ein offener Schalter im Stromkreis?',o:[['Er unterbricht den ganzen Kreis',1,'Genau. Der Strom stoppt überall, nicht nur beim Schalter.'],['Er stoppt den Strom nur nach dem Schalter',0,'Der Strom braucht den ganzen Ring. Fehlt ein Stück, steht er überall still.'],['Er macht die Lampe nur etwas dunkler',0,'Das wäre ein Dimmer. Ein Schalter kennt nur offen oder geschlossen.']]},
+ {t:'match',q:'Ordnen Sie jedem Bauteil seine Aufgabe zu.',pairs:[['Batterie','treibt den Strom an'],['Lampe','macht aus Strom Licht'],['Schalter','öffnet und schliesst den Kreis'],['Draht','verbindet die Bauteile']]},
+ {t:'mc',q:'Welches Bauteil zeigt dieses Zeichen?',sym:'lamp',o:[['Lampe',1,'Richtig: ein Kreis mit einem Kreuz.'],['Widerstand',0,'Der Widerstand ist ein leeres Rechteck.'],['Schalter',0,'Beim Schalter sehen Sie einen geknickten Strich.']]},
+ {t:'mc',q:'Welches Bauteil zeigt dieses Zeichen?',sym:'sw',o:[['Schalter (offen)',1,'Richtig: Der Strich klappt nach oben, der Kreis ist offen.'],['Batterie',0,'Die Batterie besteht aus einem langen und einem kurzen Strich.'],['Draht',0,'Ein Draht ist einfach eine durchgehende Linie.']]},
+ {t:'mc',q:'Welche Gegenstände leiten Strom gut?',o:[['Kupferdraht und Alufolie',1,'Metalle sind gute Leiter.'],['Kupferdraht und Gummiband',0,'Gummi ist ein Isolator. Darum sind Kabel damit ummantelt.'],['Holzstab und Glas',0,'Trockenes Holz und Glas sind Isolatoren.']]},
+]});
+
+chapter({id:'spannung',n:'Spannung',s:'Der Antrieb, gemessen in Volt',ico:'bat',c:'var(--nord13)',
+lead:'Spannung ist der Druck, der den Strom antreibt. Je höher die Spannung, desto stärker wird gedrückt.',
+html:`
+<div class="prose"><p>Stellen Sie sich einen Wassertank vor, aus dem unten ein Rohr führt. Je höher das Wasser steht, desto stärker drückt es. Die <b>Spannung</b> ist diese Füllhöhe.</p>
+<p>Spannung gibt es immer <b>zwischen zwei Punkten</b>, zum Beispiel zwischen Plus und Minus einer Batterie. Das Formelzeichen ist <b>U</b>, die Einheit ist <b>Volt (V)</b>.</p></div>
+<div class="panel"><div class="ptitle">Spannung verändern</div><div class="hint">Ziehen Sie den Regler. Der Widerstand bleibt gleich. Das Wasser ist nur ein Bild, aber es hilft für den Anfang.</div><div data-w="m-u"></div></div>
+<div class="sec"><h2>Typische Spannungen</h2><div class="tabwrap"><table><thead><tr><th>Quelle</th><th>Spannung</th></tr></thead><tbody>
+<tr><td>AA-Batterie</td><td class="num">1.5 V</td></tr><tr><td>USB-Anschluss</td><td class="num">5 V</td></tr><tr><td>9-Volt-Block</td><td class="num">9 V</td></tr><tr><td>Autobatterie</td><td class="num">12 V</td></tr><tr><td>Steckdose in der Schweiz</td><td class="num">230 V</td></tr></tbody></table></div></div>
+<div class="prose"><p>Mehrere Batterien hintereinander addieren ihre Spannung: Plus der einen an Minus der nächsten. Drei AA-Batterien ergeben 4.5 V.</p></div>
+<div class="box achtung"><b class="t">Achtung</b><p>Die Steckdose ist lebensgefährlich. Alles auf dieser Seite gilt für kleine Batterien. Experimentieren Sie nie mit Netzspannung.</p></div>
+<div class="box merke"><b class="t">Merke</b><p>Spannung U in Volt ist der Antrieb. Sie liegt auch dann an, wenn gerade kein Strom fliesst.</p></div>`,
+ex:[
+ {t:'mc',q:'Was beschreibt die Spannung am besten?',o:[['Den Druck, der den Strom antreibt',1,'Genau: je mehr Druck, desto mehr kann fliessen.'],['Die Menge Strom, die gerade fliesst',0,'Das ist die Stromstärke. Die Spannung ist die Ursache, der Strom die Wirkung.'],['Die Dicke des Drahts',0,'Die Dicke beeinflusst den Widerstand, nicht die Spannung.']]},
+ {t:'num',q:'Eine Taschenlampe enthält drei AA-Batterien mit je 1.5 V hintereinander. Wie gross ist die Gesamtspannung?',a:4.5,u:'V',hint:'Hintereinander geschaltete Spannungen werden addiert.',sol:'1.5 V + 1.5 V + 1.5 V = 4.5 V'},
+ {t:'gen',q:'Batterien hintereinander',make:()=>{const u=pick([1.5,1.5,1.5,3,4.5]),n=pick([2,3,4,5,6]);return{q:`${n} Batterien mit je ${u} V sind hintereinander geschaltet. Wie gross ist die Gesamtspannung?`,a:rnd(u*n),u:'V',hint:'Multiplizieren Sie die Anzahl mit der Spannung einer Batterie.',sol:`${n} · ${u} V = ${rnd(u*n)} V`}}},
+ {t:'mc',q:'Dieses Zeichen ist eine Batterie. Rechts ist der lange Strich. Welcher Pol ist das?',sym:'bat',o:[['Der Pluspol',1,'Der lange Strich steht für Plus, der kurze dicke für Minus.'],['Der Minuspol',0,'Umgekehrt: Der kurze dicke Strich ist Minus.'],['Das spielt keine Rolle',0,'Bei der Batterie sind Plus und Minus klar festgelegt.']]},
+ {t:'mc',q:'Eine neue Batterie liegt in der Schublade. Was stimmt?',o:[['Sie hat Spannung, aber es fliesst kein Strom',1,'Der Druck ist da, nur fehlt der geschlossene Kreis.'],['Sie hat keine Spannung, weil nichts angeschlossen ist',0,'Die Spannung ist auch ohne Stromkreis vorhanden.'],['Es fliesst ständig ein starker Strom',0,'Ohne geschlossenen Kreis kann kein Strom fliessen.']]},
+ {t:'mc',q:'Wie misst man die Spannung einer Batterie?',o:[['Mit dem Messgerät an beiden Polen gleichzeitig',1,'Spannung gibt es immer zwischen zwei Punkten.'],['Nur am Pluspol',0,'Ein Punkt allein genügt nicht, es braucht den Vergleich zweier Punkte.'],['Indem man den Draht durchschneidet',0,'Das macht man höchstens für die Strommessung.']]},
+ {t:'match',q:'Ordnen Sie jeder Quelle die passende Spannung zu.',pairs:[['AA-Batterie','1.5 V'],['USB-Anschluss','5 V'],['Autobatterie','12 V'],['Steckdose','230 V']]},
+ {t:'mc',q:'Eine Lampe hängt erst an 3 V, dann an 9 V. Was passiert?',o:[['An 9 V leuchtet sie heller',1,'Mehr Druck treibt mehr Strom durch die Lampe.'],['Sie leuchtet gleich hell',0,'Die Spannung bestimmt, wie stark gedrückt wird. Das sieht man an der Helligkeit.'],['An 9 V leuchtet sie dunkler',0,'Mehr Spannung bedeutet mehr Strom, also mehr Licht.']]},
+ {t:'mc',q:'Warum experimentiert man nicht an der Steckdose?',o:[['230 V können lebensgefährlich sein',1,'Darum arbeiten wir nur mit kleinen Batterien.'],['Die Steckdose liefert zu wenig Spannung',0,'Im Gegenteil: 230 V sind sehr viel.'],['Steckdosen haben keinen Stromkreis',0,'Auch dort gibt es einen Kreis, und er kann durch Ihren Körper führen.']]},
+]});
+
+chapter({id:'strom',n:'Strom',s:'Was fliesst, gemessen in Ampere',ico:'wire',c:'var(--nord9)',
+lead:'Strom ist das, was tatsächlich fliesst: Wie viel Ladung kommt pro Sekunde an einer Stelle vorbei?',
+html:`
+<div class="prose"><p>Im Wasserbild ist der <b>Strom</b> die Wassermenge, die pro Sekunde durch das Rohr fliesst. In einem Draht bewegen sich winzige geladene Teilchen, die Elektronen.</p>
+<p>Das Formelzeichen ist <b>I</b>, die Einheit ist <b>Ampere (A)</b>. Für kleine Ströme verwendet man Milliampere: <code>1 A = 1000 mA</code>.</p>
+<p>Wichtig: Strom wird <b>nicht verbraucht</b>. Was in die Lampe hineinfliesst, fliesst auch wieder hinaus. Die Lampe verbraucht nur Energie.</p></div>
+<div class="panel"><div class="ptitle">Strom an zwei Stellen messen</div><div class="hint">M1 misst vor der Lampe, M2 nach der Lampe. Ändern Sie die Spannung und vergleichen Sie.</div><div data-w="probe"></div></div>
+<div class="prose"><p>Zur Messung baut man das Messgerät <b>in den Kreis ein</b>, damit der Strom hindurchfliesst. Das ist der Unterschied zur Spannung, die man von aussen an zwei Punkten misst.</p>
+<p>Man zeichnet den Strom von Plus nach Minus. Das heisst <b>technische Stromrichtung</b>. Die Elektronen laufen in Wirklichkeit andersherum. Für unsere Schaltungen spielt das keine Rolle. Die Punkte in den Schaltungen zeigen die technische Richtung, ihr Tempo ist stark übertrieben: Elektronen kriechen oft langsamer als einen Millimeter pro Sekunde.</p></div>
+<div class="box merke"><b class="t">Merke</b><p>Strom I in Ampere ist die Menge pro Sekunde. In einem einfachen Kreis ist er überall gleich gross.</p></div>`,
+ex:[
+ {t:'mc',q:'Was entspricht im Wasserbild dem Strom?',o:[['Die Wassermenge pro Sekunde im Rohr',1,'Genau: Menge pro Zeit.'],['Die Füllhöhe des Tanks',0,'Die Füllhöhe entspricht der Spannung.'],['Die Engstelle im Rohr',0,'Die Engstelle entspricht dem Widerstand.']]},
+ {t:'mc',q:'Vor der Lampe fliessen 300 mA. Wie viel fliesst nach der Lampe?',sim:P.probe,simo:{probes:[{k:'h1_0',n:'M1',hide:1,below:1},{k:'h3_0',n:'M2',hide:1,below:1}]},o:[['Ebenfalls 300 mA',1,'Strom wird nicht verbraucht. Er ist im ganzen Ring gleich.'],['Weniger als 300 mA',0,'Das ist die häufigste falsche Vorstellung. Die Lampe verbraucht Energie, nicht Strom.'],['0 mA',0,'Dann könnte der Kreis nicht geschlossen sein.']]},
+ {t:'gen',q:'Milliampere und Ampere',make:()=>{if(Math.random()<.5){const m=pick([5,20,50,150,250,300,500,750,1200,2500]);return{q:`Rechnen Sie ${m} mA in Ampere um.`,a:m/1000,u:'A',hint:'1000 mA sind 1 A. Teilen Sie durch 1000.',sol:`${m} / 1000 = ${m/1000} A`}}const a=pick([.02,.05,.1,.25,.5,1.2,1.5,2,3]);return{q:`Rechnen Sie ${a} A in Milliampere um.`,a:rnd(a*1000),u:'mA',hint:'1 A sind 1000 mA. Multiplizieren Sie mit 1000.',sol:`${a} · 1000 = ${rnd(a*1000)} mA`}}},
+ {t:'mc',q:'Wie baut man ein Strommessgerät ein?',o:[['In den Kreis hinein, damit der Strom hindurchfliesst',1,'Der ganze Strom muss durch das Gerät, sonst kann es ihn nicht zählen.'],['Aussen an die beiden Batteriepole',0,'So misst man die Spannung.'],['Neben den Draht, ohne Berührung',0,'Für die einfachen Messgeräte im Unterricht braucht es eine Verbindung im Kreis.']]},
+ {t:'mc',q:'Wie ist die technische Stromrichtung festgelegt?',o:[['Von Plus nach Minus',1,'Das ist die Abmachung, die in allen Schaltplänen gilt.'],['Von Minus nach Plus',0,'So bewegen sich die Elektronen, gezeichnet wird aber von Plus nach Minus.'],['Sie wechselt ständig',0,'Bei einer Batterie bleibt die Richtung gleich.']]},
+ {t:'match',q:'Ordnen Sie die typische Stromstärke zu.',pairs:[['Kleine LED','20 mA'],['Lämpchen in dieser Seite','750 mA'],['Handy-Schnellladen','3 A'],['Wasserkocher','10 A']]},
+ {t:'mc',q:'Sie öffnen den Schalter. Wann hört der Strom am anderen Ende des Kreises auf?',o:[['Praktisch sofort, überall gleichzeitig',1,'Der ganze Ring bleibt gemeinsam stehen.'],['Erst nach einigen Minuten',0,'Die Elektronen sind zwar langsam, aber der Antrieb wirkt fast sofort im ganzen Draht.'],['Gar nicht',0,'Ohne geschlossenen Kreis kann kein Strom fliessen.']]},
+ {t:'mc',q:'Was stimmt?',o:[['Spannung ohne Strom gibt es, Strom ohne Spannung nicht',1,'Die Batterie in der Schublade hat Spannung ohne Strom. Strom braucht aber immer einen Antrieb.'],['Strom ohne Spannung gibt es, Spannung ohne Strom nicht',0,'Umgekehrt: Der Strom braucht die Spannung als Antrieb.'],['Spannung und Strom sind dasselbe',0,'Spannung ist der Antrieb, Strom ist die Bewegung.']]},
+ {t:'mc',q:'Eine Lampe ist die Lichtquelle im Kreis. Was wird in ihr verbraucht?',o:[['Energie',1,'Sie wird zu Licht und Wärme.'],['Strom',0,'Der Strom läuft wieder aus der Lampe hinaus.'],['Spannung und Strom zugleich',0,'Der Strom bleibt gleich gross. Abgegeben wird Energie.']]},
+]});
+
+chapter({id:'widerstand',n:'Widerstand',s:'Die Bremse, gemessen in Ohm',ico:'res',c:'var(--nord12)',
+lead:'Ein Widerstand bremst den Strom. Er ist wie eine Engstelle im Rohr.',
+html:`
+<div class="prose"><p>Alles, was Strom durchlässt, bremst ihn ein wenig. Ein Bauteil, das genau dafür gebaut ist, heisst ebenfalls <b>Widerstand</b>. Sein Formelzeichen ist <b>R</b>, die Einheit ist <b>Ohm (Ω)</b>. Für grosse Werte verwendet man Kiloohm: <code>1 kΩ = 1000 Ω</code>.</p>
+<ul><li>Grosser Widerstand: wenig Strom.</li><li>Kleiner Widerstand: viel Strom.</li><li>Ein Draht hat fast 0 Ω.</li></ul>
+<p>Beim Bauteil spielt die Einbaurichtung keine Rolle. Die gebremste Energie wird zu Wärme.</p></div>
+<div class="panel"><div class="ptitle">Widerstand verändern</div><div class="hint">Die Spannung bleibt gleich. Beobachten Sie die Engstelle und den Strom.</div><div data-w="m-r"></div></div>
+<div class="sec"><h2>Wozu bremsen?</h2><div class="prose"><p>Viele Bauteile vertragen nur einen kleinen Strom. Der Widerstand begrenzt ihn auf einen sicheren Wert. Ohne ihn gibt es im schlimmsten Fall einen <b>Kurzschluss</b>: Der Strom fliesst fast ungebremst von Plus nach Minus, Draht und Batterie werden heiss.</p></div></div>
+<div class="box merke"><b class="t">Merke</b><p>Widerstand R in Ohm bremst den Strom. Doppelter Widerstand bedeutet halber Strom.</p></div>`,
+ex:[
+ {t:'mc',q:'Was bewirkt ein grösserer Widerstand, wenn die Spannung gleich bleibt?',o:[['Es fliesst weniger Strom',1,'Die Engstelle ist schmaler, also kommt weniger durch.'],['Es fliesst mehr Strom',0,'Mehr Widerstand heisst stärker bremsen.'],['Die Batterie liefert mehr Spannung',0,'Die Spannung der Batterie ändert sich dadurch nicht.']]},
+ {t:'gen',q:'Ohm und Kiloohm',make:()=>{if(Math.random()<.5){const k=pick([1,2.2,3.3,4.7,10,22,47,100]);return{q:`Wie viele Ohm sind ${k} kΩ?`,a:rnd(k*1000),u:'Ω',hint:'1 kΩ sind 1000 Ω.',sol:`${k} · 1000 = ${rnd(k*1000)} Ω`}}const o=pick([220,470,1000,1500,2200,4700,10000]);return{q:`Wie viele Kiloohm sind ${o} Ω?`,a:o/1000,u:'kΩ',hint:'Teilen Sie durch 1000.',sol:`${o} / 1000 = ${o/1000} kΩ`}}},
+ {t:'mc',q:'Spielt es eine Rolle, wie herum ein Widerstand eingebaut ist?',o:[['Nein, er bremst in beide Richtungen gleich',1,'Darum haben Widerstände weder Plus noch Minus.'],['Ja, wie bei einer Batterie',0,'Der Widerstand hat keine Pole.'],['Ja, sonst geht er kaputt',0,'Die Richtung ist ihm egal.']]},
+ {t:'mc',q:'Wohin geht die Energie, die ein Widerstand bremst?',o:[['Sie wird zu Wärme',1,'Darum werden Widerstände warm.'],['Sie fliesst in die Batterie zurück',0,'Energie fliesst hier nicht zurück.'],['Sie verschwindet',0,'Energie verschwindet nie, sie wird umgewandelt.']]},
+ {t:'mc',q:'Sie verdoppeln den Widerstand. Die Spannung bleibt gleich. Was passiert mit dem Strom?',o:[['Er halbiert sich',1,'Doppelte Bremse, halber Strom.'],['Er verdoppelt sich',0,'Das wäre beim halben Widerstand so.'],['Er bleibt gleich',0,'Der Strom hängt direkt vom Widerstand ab.']]},
+ {t:'pred',q:'Im Kreis liegen eine Lampe und ein Widerstand mit 10 kΩ. Leuchtet die Lampe sichtbar?',sim:()=>ring(3,1,{l:{0:B(9)},t:{1:R(10000)},r:{0:LA()}}),o:YESNO,why:'Der Widerstand lässt nur 0.9 mA durch. Das reicht für diese Lampe nicht.'},
+ {t:'pred',q:'Jetzt sind es nur 10 Ω. Leuchtet die Lampe sichtbar?',sim:()=>ring(3,1,{l:{0:B(9)},t:{1:R(10)},r:{0:LA()}}),o:YESNO,why:'Mit 10 Ω fliessen rund 400 mA. Die Lampe leuchtet, wenn auch etwas schwächer.'},
+ {t:'mc',q:'Warum ist ein Kurzschluss gefährlich?',o:[['Fast ohne Widerstand fliesst sehr viel Strom, und alles wird heiss',1,'Darum gibt es Sicherungen.'],['Weil die Spannung plötzlich auf 230 V steigt',0,'Die Spannung bleibt, aber der Strom wird riesig.'],['Weil gar kein Strom mehr fliesst',0,'Das Gegenteil ist der Fall.']]},
+ {t:'match',q:'Welche Werte sind gleich gross?',pairs:[['1 kΩ','1000 Ω'],['4.7 kΩ','4700 Ω'],['0.47 kΩ','470 Ω'],['10 kΩ','10000 Ω']]},
+ {t:'mc',q:'Dieses Zeichen ist welches Bauteil?',sym:'res',o:[['Widerstand',1,'Das Rechteck steht für den Widerstand.'],['Batterie',0,'Die Batterie hat zwei unterschiedlich lange Striche.'],['Lampe',0,'Die Lampe ist ein Kreis mit Kreuz.']]},
+]});
+
+chapter({id:'ohm',n:'Ohmsches Gesetz',s:'U, R und I verbinden',ico:'res',c:'var(--nord7)',
+lead:'Spannung, Strom und Widerstand hängen zusammen. Eine einzige Formel genügt: U = R · I.',
+html:`
+<div class="prose"><p>Sie wissen schon: Mehr Spannung bedeutet mehr Strom, mehr Widerstand bedeutet weniger Strom. Das <b>ohmsche Gesetz</b> sagt genau, wie viel:</p></div>
+<div class="panel"><div class="ptitle">Das Formeldreieck</div><div class="hint">Decken Sie die gesuchte Grösse ab. Es bleibt die Formel stehen.</div><div data-w="tri"></div></div>
+<div class="panel"><div class="ptitle">Selber rechnen lassen</div><div class="hint">Verändern Sie U und R. Die Gerade im Diagramm zeigt alle möglichen Werte für diesen Widerstand. Der Punkt zeigt den aktuellen Wert.</div><div data-w="m-ohm"></div></div>
+<div class="sec"><h2>So rechnen Sie Schritt für Schritt</h2><div class="prose"><p>Beispiel: Ein Widerstand mit 450 Ω hängt an 9 V. Wie gross ist der Strom?</p>
+<ol><li>Gesucht ist I, also <code>I = U / R</code>.</li><li>Einsetzen: <code>I = 9 V / 450 Ω</code>.</li><li>Ausrechnen: <code>I = 0.02 A</code>.</li><li>Umrechnen: <code>0.02 A = 20 mA</code>.</li></ol></div></div>
+<div class="box achtung"><b class="t">Einheiten-Falle</b><p>Rechnen Sie immer mit Volt, Ohm und Ampere. Wandeln Sie mA in A und kΩ in Ω um, bevor Sie einsetzen.</p></div>
+<div class="box merke"><b class="t">Merke</b><p><code>U = R · I</code>, <code>I = U / R</code>, <code>R = U / I</code></p></div>`,
+ex:[
+ {t:'num',q:'An 9 V hängt ein Widerstand mit 450 Ω. Wie gross ist der Strom in mA?',a:20,u:'mA',hint:'I = U / R, danach mit 1000 multiplizieren.',sol:'9 V / 450 Ω = 0.02 A = 20 mA'},
+ {t:'num',q:'An 5 V hängt ein Widerstand mit 250 Ω. Wie gross ist der Strom in mA?',a:20,u:'mA',hint:'I = U / R',sol:'5 V / 250 Ω = 0.02 A = 20 mA'},
+ {t:'num',q:'Durch einen Widerstand mit 150 Ω fliessen 0.02 A. Wie gross ist die Spannung?',a:3,u:'V',hint:'U = R · I',sol:'150 Ω · 0.02 A = 3 V'},
+ {t:'num',q:'An 12 V fliessen 0.5 A. Wie gross ist der Widerstand?',a:24,u:'Ω',hint:'R = U / I',sol:'12 V / 0.5 A = 24 Ω'},
+ {t:'gen',q:'Strom berechnen',make:()=>{let u,r,i;do{u=pick([3,4.5,5,6,9,12]);r=pick([100,150,200,250,300,450,500,600,900,1000,1500]);i=u/r*1000}while(i*2%1);return{q:`U = ${u} V, R = ${r} Ω. Wie gross ist I in mA?`,a:i,u:'mA',hint:'I = U / R, dann mit 1000 multiplizieren.',sol:`${u} V / ${r} Ω = ${rnd(i/1000,4)} A = ${i} mA`}}},
+ {t:'gen',q:'Spannung berechnen',make:()=>{const r=pick([100,150,200,220,330,470,1000]),m=pick([5,10,15,20,25,30]),u=rnd(r*m/1000);return{q:`R = ${r} Ω, I = ${m} mA. Wie gross ist U?`,a:u,u:'V',hint:`Wandeln Sie zuerst um: ${m} mA = ${m/1000} A. Dann U = R · I.`,sol:`${r} Ω · ${m/1000} A = ${u} V`}}},
+ {t:'gen',q:'Widerstand berechnen',make:()=>{let u,m,r;do{u=pick([3,4.5,5,6,9,12]);m=pick([5,10,15,20,25,30,50]);r=u/(m/1000)}while(r%1);return{q:`U = ${u} V, I = ${m} mA. Wie gross ist R?`,a:r,u:'Ω',hint:`Wandeln Sie zuerst um: ${m} mA = ${m/1000} A. Dann R = U / I.`,sol:`${u} V / ${m/1000} A = ${r} Ω`}}},
+ {t:'gen',q:'Mit Kiloohm rechnen',make:()=>{const k=pick([1,2,3,4.5,5,10]),u=pick([3,4.5,6,9,12]),i=rnd(u/k,3);return{q:`U = ${u} V, R = ${k} kΩ. Wie gross ist I in mA?`,a:i,u:'mA',hint:`${k} kΩ sind ${k*1000} Ω.`,sol:`${u} V / ${k*1000} Ω = ${rnd(i/1000,5)} A = ${i} mA`}}},
+ {t:'mc',q:'Sie verdoppeln die Spannung. Der Widerstand bleibt gleich. Was passiert?',o:[['Der Strom verdoppelt sich',1,'I = U / R: U steht oben im Bruch.'],['Der Strom halbiert sich',0,'Das geschieht, wenn der Widerstand verdoppelt wird.'],['Der Widerstand verdoppelt sich',0,'Der Widerstand ist eine Eigenschaft des Bauteils.']]},
+ {t:'mc',q:'Welche Formel gibt den Widerstand?',o:[['R = U / I',1,'Im Dreieck steht U über R und I.'],['R = U · I',0,'Das Produkt aus U und I ist die Leistung, nicht der Widerstand.'],['R = I / U',0,'Prüfen Sie im Dreieck: U steht oben.']]},
+ {t:'mc',q:'Im Diagramm vergleichen Sie zwei Geraden für verschiedene Widerstände. Welche ist steiler?',o:[['Die Gerade des kleineren Widerstands',1,'Bei gleicher Spannung fliesst mehr Strom, die Gerade steigt schneller.'],['Die Gerade des grösseren Widerstands',0,'Probieren Sie es im Diagramm oben aus: Je grösser R, desto flacher die Gerade.'],['Beide sind gleich steil',0,'Die Steigung hängt vom Widerstand ab.']]},
+ {t:'mc',q:'Lea rechnet: I = 9 V / 1 kΩ = 9 A. Wo liegt der Fehler?',o:[['Sie hat kΩ nicht in Ω umgewandelt',1,'Richtig wäre 9 V / 1000 Ω = 0.009 A = 9 mA.'],['Die Formel ist falsch',0,'Die Formel stimmt, die Einheit nicht.'],['Es gibt keinen Fehler',0,'9 A wäre ein riesiger Strom für diesen Widerstand.']]},
+]});
+
+chapter({id:'led',n:'Die LED',s:'Leuchtet nur in eine Richtung',ico:'led',c:'var(--nord11)',
+lead:'Eine LED ist eine Einbahnstrasse für Strom, und sie braucht fast immer einen Vorwiderstand.',
+html:`
+<div class="prose"><p><b>LED</b> steht für Licht emittierende Diode. Eine Diode lässt Strom nur in eine Richtung durch. Eingebaut wird sie so:</p>
+<ul><li><b>Anode:</b> das lange Bein, zeigt Richtung Plus.</li><li><b>Kathode:</b> das kurze Bein, zeigt Richtung Minus. Am Gehäuse ist sie oft abgeflacht.</li></ul>
+<p>Im Schaltzeichen zeigt das Dreieck in die Stromrichtung. Der Strich am Ende ist die Kathode.</p>
+<p>Eine LED hat zudem eine <b>Durchlassspannung</b>: Unterhalb davon bleibt sie dunkel. Oberhalb steigt der Strom sehr schnell an. Darum braucht sie einen <b>Vorwiderstand</b>, der den Strom auf etwa 20 mA begrenzt.</p></div>
+<div class="tabwrap"><table><thead><tr><th>Farbe</th><th>Durchlassspannung</th></tr></thead><tbody><tr><td>Rot</td><td class="num">2.0 V</td></tr><tr><td>Gelb</td><td class="num">2.1 V</td></tr><tr><td>Grün</td><td class="num">2.2 V</td></tr><tr><td>Blau, Weiss</td><td class="num">3.0 V</td></tr></tbody></table></div>
+<p class="hint">Das sind typische Werte, mit denen diese Seite rechnet. Für echte Bauteile gilt das Datenblatt.</p>
+<div class="panel"><div class="ptitle">LED-Prüfstand</div><div class="hint">Versuchen Sie, die LED hell leuchten zu lassen, ohne sie zu zerstören. Sie dürfen ruhig eine durchbrennen lassen.</div><div data-w="ledlab"></div></div>
+<div class="sec"><h2>Vorwiderstand berechnen</h2><div class="prose"><p>Beispiel: rote LED an 9 V, gewünscht sind 20 mA.</p>
+<ol><li>Spannung für den Widerstand: <code>9 V - 2 V = 7 V</code>. Die LED nimmt sich ihre 2 V, den Rest übernimmt der Widerstand.</li><li>Strom umrechnen: <code>20 mA = 0.02 A</code>.</li><li>Ohmsches Gesetz: <code>R = 7 V / 0.02 A = 350 Ω</code>.</li><li>Normwert wählen: Es gibt nur bestimmte Werte zu kaufen, etwa 330 Ω und 390 Ω. Nehmen Sie den nächstgrösseren: <b>390 Ω</b>.</li></ol></div></div>
+<div class="box merke"><b class="t">Merke</b><p>Langes Bein Richtung Plus. Immer mit Vorwiderstand. <code>R = (U - UF) / I</code>, wobei UF die Durchlassspannung ist.</p></div>`,
+ex:[
+ {t:'mc',q:'Wie unterscheidet sich eine LED von einer Lampe?',o:[['Sie lässt Strom nur in eine Richtung durch',1,'Darum ist die Einbaurichtung wichtig.'],['Sie funktioniert ohne geschlossenen Kreis',0,'Auch eine LED braucht einen geschlossenen Kreis.'],['Sie braucht keine Spannung',0,'Sie braucht sogar mindestens ihre Durchlassspannung.']]},
+ {t:'pred',q:'Rote LED mit 470 Ω an 9 V. Was passiert?',sim:P.ledOk,o:YESLED,why:'Richtung und Widerstand stimmen. Es fliessen rund 15 mA.'},
+ {t:'pred',q:'Jetzt ist die LED umgekehrt eingebaut. Was passiert?',sim:P.ledRev,o:YESLED,why:'In dieser Richtung sperrt die LED. Es fliesst kein Strom.'},
+ {t:'pred',q:'Rote LED direkt an 9 V, ohne Widerstand. Was passiert?',sim:P.ledNoR,o:YESLED,why:'Nichts begrenzt den Strom. Er steigt weit über 30 mA, und die LED ist zerstört.'},
+ {t:'pred',q:'Rote LED mit 100 Ω an einer einzelnen 1.5-V-Batterie. Was passiert?',sim:P.led15,o:YESLED,why:'Die rote LED braucht 2 V. Mit 1.5 V bleibt sie gesperrt.'},
+ {t:'pred',q:'Blaue LED mit 1 kΩ an 3 V. Was passiert?',sim:P.ledBlau3,o:YESLED,why:'Die 3 V reichen nur gerade für die Durchlassspannung. Für den Widerstand bleibt nichts übrig, also fliesst praktisch kein Strom.'},
+ {t:'pred',q:'Grüne LED mit 47 Ω an 9 V. Was passiert?',sim:P.ledHuge,o:YESLED,why:'(9 V - 2.2 V) / 47 Ω ergibt rund 145 mA. Das ist weit über dem Grenzwert.'},
+ {t:'mc',q:'Welches Bein der LED kommt Richtung Plus?',o:[['Das lange Bein (Anode)',1,'Langes Bein zu Plus, das merkt man sich leicht.'],['Das kurze Bein (Kathode)',0,'Das kurze Bein zeigt zum Minuspol.'],['Beide Beine sind gleich',0,'Sie sind absichtlich unterschiedlich lang.']]},
+ {t:'mc',q:'Warum braucht eine LED einen Vorwiderstand?',o:[['Er begrenzt den Strom, sonst brennt die LED durch',1,'Die LED selbst begrenzt den Strom kaum.'],['Er erhöht die Spannung an der LED',0,'Er senkt sie auf den passenden Wert.'],['Er legt die Farbe fest',0,'Die Farbe hängt vom Halbleitermaterial der LED ab.']]},
+ {t:'num',q:'Rote LED (2 V) an 9 V mit 20 mA. Wie gross muss der Vorwiderstand rechnerisch sein?',a:350,u:'Ω',hint:'Erst 9 V - 2 V, dann durch 0.02 A teilen.',sol:'(9 V - 2 V) / 0.02 A = 350 Ω'},
+ {t:'num',q:'Blaue LED (3 V) an 5 V mit 20 mA. Wie gross muss der Vorwiderstand sein?',a:100,u:'Ω',hint:'Erst 5 V - 3 V, dann durch 0.02 A teilen.',sol:'(5 V - 3 V) / 0.02 A = 100 Ω'},
+ {t:'gen',q:'Spannung am Vorwiderstand',make:()=>{const[c,l]=pick(Object.entries(LED)),u=pick([3,4.5,5,6,9,12]);if(u<=l.vf)return GEN.vr();return{q:`${l.n}e LED (${l.vf} V) an ${u} V. Welche Spannung liegt am Vorwiderstand?`,a:rnd(u-l.vf),u:'V',hint:'Die Batteriespannung teilt sich auf LED und Widerstand auf.',sol:`${u} V - ${l.vf} V = ${rnd(u-l.vf)} V`}}},
+ {t:'gen',q:'Vorwiderstand berechnen',make:()=>{const l=pick(Object.values(LED)),u=pick([5,6,9,12]),m=pick([10,15,20]),r=rnd((u-l.vf)/(m/1000),0);return{q:`${l.n}e LED (${l.vf} V) an ${u} V mit ${m} mA. Wie gross ist der Vorwiderstand? Runden Sie auf ganze Ohm.`,a:r,u:'Ω',hint:`Erst ${u} V - ${l.vf} V, dann durch ${m/1000} A teilen.`,sol:`(${u} V - ${l.vf} V) / ${m/1000} A ≈ ${r} Ω`}}},
+ {t:'gen',q:'Strom durch die LED',make:()=>{const l=pick(Object.values(LED)),u=pick([5,6,9,12]),r=pick([220,330,470,680,1000]),i=rnd((u-l.vf)/r*1000,1);return{q:`${l.n}e LED (${l.vf} V) an ${u} V mit ${r} Ω. Wie gross ist der Strom in mA?`,a:i,u:'mA',hint:`Am Widerstand liegen ${rnd(u-l.vf)} V. Teilen Sie durch ${r} Ω.`,sol:`${rnd(u-l.vf)} V / ${r} Ω = ${i} mA`}}},
+ {t:'mc',q:'Sie haben 350 Ω berechnet. Im Kasten liegen 330 Ω und 390 Ω. Welchen nehmen Sie?',o:[['390 Ω',1,'Der Strom wird etwas kleiner und bleibt sicher unter 20 mA.'],['330 Ω',0,'Der Strom läge leicht über 20 mA. Im Zweifel den grösseren Wert wählen.'],['Beide in Reihe',0,'Das wären 720 Ω, die LED würde deutlich dunkler.']]},
+ {t:'mc',q:'Sie vergrössern den Vorwiderstand von 390 Ω auf 1 kΩ. Was passiert?',o:[['Die LED leuchtet schwächer',1,'Weniger Strom bedeutet weniger Licht.'],['Die LED leuchtet heller',0,'Mehr Widerstand heisst weniger Strom.'],['Die LED brennt durch',0,'Sie brennt nur bei zu viel Strom durch, nicht bei zu wenig.']]},
+]});
+
+chapter({id:'schalter',n:'Schalter',s:'Steuern, und die erste Logik',ico:'sw',c:'var(--nord15)',
+lead:'Mit Schaltern steuern Sie den Stromkreis. Zwei Schalter ergeben bereits Logik wie im Computer.',
+html:`
+<div class="prose"><p>Es gibt zwei wichtige Unterschiede:</p>
+<ul><li><b>Schalter und Taster:</b> Ein Schalter bleibt in seiner Stellung. Ein Taster wirkt nur, solange Sie ihn drücken, wie bei der Türklingel.</li><li><b>Schliesser und Öffner:</b> Ein Schliesser schliesst den Kreis, wenn er betätigt wird. Ein Öffner macht das Gegenteil: Das Licht im Kühlschrank brennt, wenn die Tür nicht mehr auf den Stift drückt.</li></ul></div>
+<div class="panel"><div class="ptitle">Taster halten</div><div class="hint">Drücken und halten Sie den gelb markierten Taster.</div><div data-w="taster"></div></div>
+<div class="sec"><h2>Zwei Schalter in Reihe: UND</h2><div class="prose"><p>Liegen zwei Schalter hintereinander, muss S1 <b>und</b> S2 geschlossen sein.</p></div><div class="panel"><div data-w="und"></div></div></div>
+<div class="sec"><h2>Zwei Schalter parallel: ODER</h2><div class="prose"><p>Liegen zwei Schalter nebeneinander, genügt S1 <b>oder</b> S2. Der Strom findet einen Weg.</p></div><div class="panel"><div data-w="oder"></div></div></div>
+<div class="prose"><p>Diese Tabellen heissen <b>Wahrheitstabellen</b>. Computer bestehen aus Milliarden winziger Schalter, den Transistoren. Sie bilden genau solche UND- und ODER-Gatter.</p></div>
+<div class="box merke"><b class="t">Merke</b><p>Reihe bedeutet UND, parallel bedeutet ODER. Wo im Ring ein Schalter sitzt, ist egal: Er unterbricht immer den ganzen Kreis.</p></div>`,
+ex:[
+ {t:'mc',q:'Was ist typisch für einen Taster?',o:[['Er wirkt nur, solange man ihn drückt',1,'Beim Loslassen springt er zurück.'],['Er bleibt in der letzten Stellung',0,'Das ist ein Schalter.'],['Er funktioniert nur mit LEDs',0,'Ein Taster funktioniert in jedem Stromkreis.']]},
+ {t:'match',q:'Schalter oder Taster: Was passt wo?',pairs:[['Türklingel','Taster'],['Deckenlicht im Zimmer','Schalter'],['Autohupe','Taster'],['Hauptschalter der Kaffeemaschine','Schalter']]},
+ {t:'mc',q:'Das Kühlschranklicht geht an, wenn die Tür aufgeht. Welche Art Kontakt sitzt am Türstift?',o:[['Ein Öffner',1,'Ist der Stift gedrückt, ist der Kreis offen. Geht die Tür auf, schliesst er sich.'],['Ein Schliesser',0,'Ein Schliesser würde das Licht bei geschlossener Tür einschalten.'],['Eine LED',0,'Die LED wäre höchstens das Licht selbst.']]},
+ {t:'pred',q:'S1 ist geschlossen, S2 ist offen. Die beiden liegen in Reihe. Was passiert?',sim:P.serOpen,o:YESNO,why:'In Reihe müssen beide geschlossen sein.'},
+ {t:'pred',q:'S1 ist offen, S2 ist geschlossen. Die beiden liegen parallel. Was passiert?',sim:()=>P.par(0,1),o:YESNO,why:'Der Strom nimmt den Weg über S2.'},
+ {t:'tt',q:'Füllen Sie die Tabelle für zwei Schalter in Reihe aus. Tippen Sie in die rechte Spalte.',fn:(a,b)=>a&&b},
+ {t:'tt',q:'Füllen Sie die Tabelle für zwei Schalter parallel aus.',fn:(a,b)=>a||b},
+ {t:'mc',q:'Macht es einen Unterschied, ob der Schalter vor oder nach der Lampe sitzt?',o:[['Nein, er unterbricht so oder so den ganzen Ring',1,'Der Kreis ist an einer beliebigen Stelle offen.'],['Ja, er muss vor der Lampe sitzen',0,'Probieren Sie es in der Werkstatt aus: Beide Plätze funktionieren.'],['Ja, er muss nach der Lampe sitzen',0,'Beide Plätze funktionieren gleich.']]},
+ {t:'pred',q:'Der Schalter S ist geschlossen und überbrückt die LED. Der Strom hat einen Weg ohne LED. Was passiert?',sim:()=>P.bypass(1),o:YESLED,why:'Der Strom nimmt den Weg über den Schalter. An der LED liegt fast keine Spannung mehr, und der Widerstand schützt die Batterie.'},
+ {t:'pred',q:'Dieselbe Schaltung, S ist jetzt offen. Was passiert?',sim:()=>P.bypass(0),o:YESLED,why:'Der Umweg ist weg, der Strom muss durch die LED.'},
+ {t:'mc',q:'Eine Kaffeemaschine soll nur laufen, wenn der Wassertank eingesetzt ist und die Taste gedrückt wird. Wie schaltet man die zwei Kontakte?',o:[['In Reihe (UND)',1,'Beide Bedingungen müssen erfüllt sein.'],['Parallel (ODER)',0,'Dann liefe sie auch ohne Wassertank.'],['Gar nicht, ein Kontakt genügt',0,'Dann wäre eine Bedingung nicht geprüft.']]},
+ {t:'mc',q:'Eine Klingel soll von der Haustür und von der Wohnungstür aus läuten. Wie schaltet man die zwei Taster?',o:[['Parallel (ODER)',1,'Einer von beiden genügt.'],['In Reihe (UND)',0,'Dann müssten zwei Leute gleichzeitig drücken.'],['Gegeneinander',0,'Taster haben keine Richtung.']]},
+ {t:'num',q:'Drei Schalter liegen in Reihe. Wie viele Stellungen gibt es insgesamt, jeder Schalter offen oder geschlossen?',a:8,u:'',hint:'Jeder Schalter verdoppelt die Zahl der Möglichkeiten.',sol:'2 · 2 · 2 = 8. Die Lampe leuchtet nur in einer davon.'},
+]});
+
+chapter({id:'schaltungen',n:'Reihe und parallel',s:'Mehrere Verbraucher',ico:'lamp',c:'var(--nord14)',
+lead:'Zwei Lampen lassen sich hintereinander oder nebeneinander anschliessen. Das Verhalten ist völlig verschieden.',
+html:`
+<div class="prose"><p>In der <b>Reihenschaltung</b> gibt es nur einen Weg. Beide Lampen teilen sich die Spannung und leuchten schwächer. Fällt eine aus, ist auch die andere dunkel.</p>
+<p>In der <b>Parallelschaltung</b> hat jede Lampe einen eigenen Weg. Beide bekommen die volle Spannung. Fällt eine aus, leuchtet die andere weiter. Die Batterie muss dafür mehr Strom liefern.</p></div>
+<div class="grid2"><div class="panel"><div class="ptitle">Reihe</div><div class="hint">Schalter S ersetzt das Herausdrehen einer Lampe.</div><div data-w="ser"></div></div><div class="panel"><div class="ptitle">Parallel</div><div class="hint">S unterbricht nur den Zweig von Lampe B.</div><div data-w="pl"></div></div></div>
+<div class="tabwrap"><table><thead><tr><th></th><th>Reihe</th><th>Parallel</th></tr></thead><tbody>
+<tr><th>Wege für den Strom</th><td>einer</td><td>mehrere</td></tr><tr><th>Spannung</th><td>teilt sich auf</td><td>überall gleich</td></tr><tr><th>Strom</th><td>überall gleich</td><td>teilt sich auf</td></tr><tr><th>Ein Teil fällt aus</th><td>alles dunkel</td><td>der Rest läuft weiter</td></tr></tbody></table></div>
+<div class="box merke"><b class="t">Merke</b><p>Reihe: Spannung teilt sich. Parallel: Strom teilt sich. Im Haus ist alles parallel geschaltet, darum funktioniert der Föhn, auch wenn die Lampe aus ist.</p></div>`,
+ex:[
+ {t:'mc',q:'Schalter S ist offen. Was ist mit den Lampen A und B in dieser Reihenschaltung?',sim:()=>P.lampSer(0),o:[['Beide sind dunkel',1,'Es gibt nur einen Weg, und der ist unterbrochen.'],['Nur B ist dunkel',0,'Der Weg führt durch beide Lampen.'],['Beide leuchten',0,'Der Kreis ist offen.']]},
+ {t:'mc',q:'Schalter S ist offen. Was ist mit den Lampen A und B in dieser Parallelschaltung?',sim:()=>P.lampPar(0),o:[['A leuchtet, B ist dunkel',1,'Lampe A hat ihren eigenen Weg.'],['Beide sind dunkel',0,'S unterbricht nur den Zweig von B.'],['Beide leuchten',0,'Der Zweig von B ist offen.']]},
+ {t:'mc',q:'Zwei gleiche Lampen in Reihe an 9 V. Wie gross ist die Spannung an einer Lampe?',o:[['4.5 V',1,'Die Spannung teilt sich gleichmässig auf.'],['9 V',0,'Das wäre in der Parallelschaltung so.'],['18 V',0,'Eine Lampe kann nicht mehr bekommen, als die Batterie liefert.']]},
+ {t:'mc',q:'Zwei gleiche Lampen parallel an 9 V. Wie gross ist die Spannung an einer Lampe?',o:[['9 V',1,'Jede hängt direkt an der Batterie.'],['4.5 V',0,'Das gilt für die Reihenschaltung.'],['0 V',0,'Dann würden sie nicht leuchten.']]},
+ {t:'mc',q:'Sie schalten eine zweite gleiche Lampe in Reihe dazu. Was passiert mit der Helligkeit?',o:[['Beide werden dunkler als eine allein',1,'Jede bekommt nur noch die halbe Spannung.'],['Beide bleiben gleich hell',0,'Das wäre parallel so.'],['Beide werden heller',0,'Die Batterie liefert nicht mehr Spannung.']]},
+ {t:'mc',q:'Sie schalten eine zweite gleiche Lampe parallel dazu. Was passiert mit dem Strom aus der Batterie?',o:[['Er verdoppelt sich',1,'Jeder Zweig braucht seinen Strom.'],['Er halbiert sich',0,'Das geschieht in der Reihenschaltung.'],['Er bleibt gleich',0,'Der zusätzliche Zweig braucht zusätzlichen Strom.']]},
+ {t:'mc',q:'Warum sind Steckdosen im Haus parallel geschaltet?',o:[['Jedes Gerät bekommt 230 V und läuft unabhängig',1,'Sonst müssten alle Geräte gleichzeitig laufen.'],['So fliesst weniger Strom',0,'Der Gesamtstrom ist sogar grösser.'],['Das spart Kabel',0,'Der Grund ist die Unabhängigkeit der Geräte.']]},
+ {t:'pred',q:'Drei rote LEDs (je 2 V) in Reihe an 5 V. Was passiert?',sim:P.threeLed,o:YESLED,why:'Zusammen bräuchten sie 6 V. Mit 5 V bleiben alle dunkel.'},
+ {t:'pred',q:'Zwei rote LEDs in Reihe mit 330 Ω an 9 V. Was passiert?',sim:P.twoLedSer,o:YESLED,why:'Die LEDs nehmen 4 V, für den Widerstand bleiben 5 V. Das ergibt rund 15 mA.'},
+ {t:'mc',q:'Lampe A liegt vor einer Abzweigung, B und C liegen parallel dahinter. Welche Lampe leuchtet am hellsten?',sim:P.mixed,o:[['Lampe A',1,'Durch A fliesst der ganze Strom, er teilt sich danach auf B und C auf.'],['Lampe B',0,'B bekommt nur einen Teil des Stroms.'],['Alle gleich hell',0,'Schauen Sie nach, wo sich der Strom aufteilt.']]},
+ {t:'mc',q:'Zwei gleiche Widerstände in Reihe. Wie gross ist der Gesamtwiderstand verglichen mit einem?',o:[['Doppelt so gross',1,'Der Strom muss beide Engstellen nacheinander passieren.'],['Halb so gross',0,'Das wäre parallel so.'],['Gleich gross',0,'Zwei Bremsen hintereinander bremsen stärker.']]},
+ {t:'mc',q:'Zwei gleiche Widerstände parallel. Wie gross ist der Gesamtwiderstand verglichen mit einem?',o:[['Halb so gross',1,'Zwei Rohre nebeneinander lassen mehr durch.'],['Doppelt so gross',0,'Das wäre in Reihe so.'],['Gleich gross',0,'Der zusätzliche Weg lässt mehr Strom durch.']]},
+]});
+
+/* ---------- Werkstatt ---------- */
+const parts=(b,t)=>Object.entries(b.els).filter(([k,e])=>e.t===t);
+const need=(b,req)=>{for(const[t,n]of Object.entries(req)){const c=parts(b,t).length;if(c<n)return`Es fehlt noch: ${n-c} × ${NAME[t]}.`}};
+const run=(b,mut)=>{const c=clone(b);Object.values(c.els).forEach(e=>{delete e.dead});mut&&mut(c);const r=settle(c);return{c,r}};
+const lit=({c,r},t)=>parts(c,t).filter(([k,e])=>isLit(e,r.by[k])).length;
+const sws=b=>Object.keys(b.els).filter(k=>['sw','tas'].includes(b.els[k].t));
+const setSw=(ks,v)=>c=>ks.forEach((k,i)=>{c.els[k].on=!!v[i]});
+const truth=(b,t,fn)=>{const ks=sws(b);if(ks.length!==fn.length)return`Bauen Sie genau ${fn.length} Schalter ein.`;
+  for(let m=0;m<2**ks.length;m++){const v=ks.map((_, i)=>!!(m>>i&1)),x=run(b,setSw(ks,v));if(x.r.short)return'In einer Schalterstellung entsteht ein Kurzschluss.';if(parts(x.c,'led').some(([k,e])=>e.dead))return'In einer Schalterstellung brennt die LED durch.';
+    const on=lit(x,t)>0;if(on!==fn(...v))return`Stimmt noch nicht: Mit ${ks.map((k,i)=>(b.els[k].name||'Schalter '+(i+1))+(v[i]?' geschlossen':' offen')).join(', ')} ${fn(...v)?'müsste es leuchten':'dürfte es nicht leuchten'}.`}};
+const ledRange=(b,lo,hi,n=1)=>{const ks=sws(b),x=run(b,ks.length?setSw(ks,ks.map(()=>1)):null),ls=parts(x.c,'led');if(ls.some(([k,e])=>e.dead))return'Die LED brennt durch. Der Strom ist zu gross, nehmen Sie einen grösseren Widerstand.';if(ls.length<n)return`Es braucht ${n} LED.`;
+  for(const[k]of ls){const i=x.r.by[k].I;if(i<lo/1000||i>hi/1000)return`Durch eine LED fliessen ${fmtI(i)}. Gewünscht sind ${lo} bis ${hi} mA.`}};
+const noShort=b=>{if(run(b).r.short)return'Hier ist noch ein Kurzschluss.'};
+const EMPTY=()=>({cols:6,rows:4,els:{}});
+const fix=(b)=>{const c={...b,cols:6,rows:4};return c};
+const T=[
+ {id:'frei',n:'Frei bauen',q:'Bauen Sie, was Sie möchten. Hier wird nichts geprüft.',start:()=>ring(4,2,{x:1,y:1,cols:6,rows:4,l:{0:B(9)},t:{1:SW(1,'S')},r:{0:R(1000)},b:{1:L('rot')}})},
+ {id:'b1',n:'Lampe',q:'Bringen Sie eine Lampe zum Leuchten. Sie brauchen eine Batterie, eine Lampe und Draht.',tip:'Setzen Sie Batterie und Lampe ein und schliessen Sie den Ring mit dem Werkzeug Draht.',start:EMPTY,check:b=>need(b,{bat:1,lamp:1})||noShort(b)||(lit(run(b),'lamp')?null:'Die Lampe leuchtet noch nicht. Ist der Ring geschlossen?')},
+ {id:'b2',n:'Mit Schalter',q:'Eine Lampe soll sich mit einem Schalter ein- und ausschalten lassen.',tip:'Ersetzen Sie im Ring ein Stück Draht durch einen Schalter.',start:EMPTY,check:b=>need(b,{bat:1,lamp:1,sw:1})||truth(b,'lamp',a=>a)},
+ {id:'b3',n:'Rote LED',q:'Eine rote LED soll an 9 V mit 10 bis 20 mA leuchten.',tip:'Rechnen Sie (9 V - 2 V) / 0.02 A und wählen Sie den nächstgrösseren Wert. Tippen Sie mit Bedienen auf den Widerstand, um den Wert zu ändern.',start:EMPTY,check:b=>need(b,{bat:1,led:1,res:1})||(parts(b,'bat')[0][1].v!==9?'Stellen Sie die Batterie auf 9 V.':null)||ledRange(b,10,20)},
+ {id:'b4',n:'Blaue LED',q:'Eine blaue LED soll an 5 V mit 10 bis 20 mA leuchten.',tip:'Blau braucht 3 V. Es bleiben 2 V für den Widerstand. Die Farbe stellen Sie ein, wenn Sie die LED mit Bedienen antippen.',start:EMPTY,check:b=>need(b,{bat:1,led:1,res:1})||(parts(b,'bat')[0][1].v!==5?'Stellen Sie die Batterie auf 5 V.':null)||(parts(b,'led')[0][1].c!=='blau'?'Stellen Sie die LED auf Blau.':null)||ledRange(b,10,20)},
+ {id:'b5',n:'Taster',q:'Eine LED soll nur leuchten, solange ein Taster gedrückt ist.',tip:'Wie Bauauftrag Rote LED, zusätzlich mit Taster im Ring.',start:EMPTY,check:b=>need(b,{bat:1,led:1,res:1,tas:1})||truth(b,'led',a=>a)},
+ {id:'b6',n:'UND',q:'Eine Lampe soll nur leuchten, wenn beide Schalter geschlossen sind.',tip:'Setzen Sie beide Schalter hintereinander in den Ring.',start:EMPTY,check:b=>need(b,{bat:1,lamp:1,sw:2})||truth(b,'lamp',(p,q)=>p&&q)},
+ {id:'b7',n:'ODER',q:'Eine Lampe soll leuchten, wenn mindestens einer der beiden Schalter geschlossen ist.',tip:'Bauen Sie zwei Wege nebeneinander, in jedem liegt ein Schalter. Dazu brauchen Sie zwei Reihen.',start:EMPTY,check:b=>need(b,{bat:1,lamp:1,sw:2})||truth(b,'lamp',(p,q)=>p||q)},
+ {id:'b8',n:'Lampen in Reihe',q:'Zwei Lampen sollen in Reihe leuchten. Auf jede kommt nur die halbe Spannung.',tip:'Beide Lampen liegen im selben Ring hintereinander.',start:EMPTY,check:b=>{const m=need(b,{bat:1,lamp:2});if(m)return m;const x=run(b),ls=parts(x.c,'lamp');if(!(lit(x,'lamp')>=2))return'Es leuchten noch nicht beide Lampen.';const I=ls.map(([k])=>Math.abs(x.r.by[k].I));return Math.abs(I[0]-I[1])>.01?'Durch beide Lampen sollte derselbe Strom fliessen.':x.r.by[ls[0][0]].U>parts(x.c,'bat')[0][1].v*.7?'Das ist parallel. Beide Lampen sollen sich die Spannung teilen.':null}},
+ {id:'b9',n:'Lampen parallel',q:'Zwei Lampen sollen parallel leuchten. Jede bekommt die volle Spannung.',tip:'Bauen Sie die zweite Lampe als eigenen Zweig zwischen die beiden Hauptleitungen.',start:EMPTY,check:b=>{const m=need(b,{bat:1,lamp:2});if(m)return m;const x=run(b),ls=parts(x.c,'lamp');if(x.r.short)return'Hier ist ein Kurzschluss.';if(!(lit(x,'lamp')>=2))return'Es leuchten noch nicht beide Lampen.';return x.r.by[ls[0][0]].U<parts(x.c,'bat')[0][1].v*.9?'Das ist eine Reihenschaltung. Jede Lampe soll die volle Spannung bekommen.':null}},
+ {id:'b10',n:'Zwei LEDs parallel',q:'Zwei rote LEDs sollen parallel an 9 V leuchten, jede mit 10 bis 20 mA und mit eigenem Widerstand.',tip:'Jeder Zweig besteht aus LED und Widerstand.',start:EMPTY,check:b=>need(b,{bat:1,led:2,res:2})||ledRange(b,10,20,2)},
+ {id:'b11',n:'Zwei LEDs in Reihe',q:'Zwei rote LEDs sollen in Reihe an 9 V leuchten, mit 10 bis 20 mA und nur einem Widerstand.',tip:'Für den Widerstand bleiben 9 V - 2 V - 2 V = 5 V.',start:EMPTY,check:b=>need(b,{bat:1,led:2,res:1})||ledRange(b,10,20,2)},
+ {id:'r1',n:'Reparatur 1',q:'Die LED leuchtet nicht. Finden Sie den Fehler und beheben Sie ihn.',tip:'Tippen Sie mit Bedienen auf die LED.',start:()=>fix(ring(4,2,{x:1,y:1,l:{0:B(9)},t:{1:R(470)},r:{0:L('rot',true)}})),check:b=>need(b,{bat:1,led:1,res:1})||ledRange(b,5,20)},
+ {id:'r2',n:'Reparatur 2',q:'Die Lampe bleibt dunkel. Finden Sie die Stelle, an der es hakt.',tip:'Prüfen Sie den Ring Stück für Stück.',start:()=>fix(ring(4,2,{x:1,y:1,l:{0:B(9)},r:{0:LA()},b:{2:0}})),check:b=>need(b,{bat:1,lamp:1})||noShort(b)||(lit(run(b),'lamp')?null:'Die Lampe ist noch dunkel.')},
+ {id:'r3',n:'Reparatur 3',q:'Die Lampe leuchtet nur schwach, und die Batterie wird heiss. Beheben Sie den Fehler.',tip:'Ein Draht führt direkt von Plus nach Minus.',start:()=>fix(ring(4,2,{x:1,y:1,l:{0:B(9),1:null},r:{0:LA(),1:null},e:{v2_1:null,v2_2:null}})),check:b=>need(b,{bat:1,lamp:1})||noShort(b)||(lit(run(b),'lamp')?null:'Die Lampe ist noch dunkel.')},
+ {id:'r4',n:'Reparatur 4',q:'Schliessen Sie den Schalter und beobachten Sie, was passiert. Sorgen Sie danach dafür, dass die LED mit 5 bis 20 mA überlebt.',tip:'Es fehlt ein Bauteil. Bauen Sie es zuerst ein und setzen Sie danach über Bedienen eine neue LED ein.',start:()=>fix(ring(4,2,{x:1,y:1,l:{0:B(9)},t:{1:SW(0,'S')},r:{0:L('gelb')}})),check:b=>need(b,{bat:1,led:1,res:1,sw:1})||(Object.values(b.els).some(e=>e.dead)?'Setzen Sie jetzt eine neue LED ein: Mit Bedienen auf die LED tippen.':null)||ledRange(b,5,20)||truth(b,'led',a=>a)},
+ {id:'r5',n:'Reparatur 5',q:'Dieser Schalter soll die Lampe ein- und ausschalten. Geschlossen erzeugt er aber einen Kurzschluss. Bauen Sie ihn richtig ein.',tip:'Der Schalter gehört in den Ring, nicht neben die Lampe.',start:()=>fix(ring(4,2,{x:1,y:1,l:{0:B(9)},r:{0:LA()},e:{v3_1:SW(0,'S'),v3_2:null}})),check:b=>need(b,{bat:1,lamp:1,sw:1})||truth(b,'lamp',a=>a)},
+];
+
+chapter({id:'werkstatt',n:'Werkstatt',s:'Selber bauen und reparieren',ico:'tas',c:'var(--nord10)',
+lead:'Hier bauen Sie Schaltungen selbst. Die Schaltung wird echt berechnet, auch Fehler wie Kurzschluss oder eine durchgebrannte LED.',
+html:`<div class="box" style="background:var(--surface)"><b class="t">So geht es</b><p>Wählen Sie ein Bauteil und tippen Sie auf ein Feld zwischen zwei Punkten. Mit <b>Draht</b> können Sie auch über mehrere Felder ziehen. Mit <b>Bedienen</b> schalten Sie Schalter und ändern Werte.</p></div><div data-w="werkstatt"></div>`,
+ex:[]});
+
+chapter({id:'schlusscheck',n:'Schlusscheck',s:'Alles zusammen',ico:'led',c:'var(--nord15)',
+lead:'Zwölf gemischte Aufgaben. Das kleine Merkblatt dürfen Sie gerne benutzen.',
+html:`<div class="tabwrap"><table><thead><tr><th>Grösse</th><th>Zeichen</th><th>Einheit</th><th>Im Wasserbild</th></tr></thead><tbody>
+<tr><td>Spannung</td><td class="num">U</td><td class="num">V</td><td>Füllhöhe, Druck</td></tr><tr><td>Strom</td><td class="num">I</td><td class="num">A, mA</td><td>Wassermenge pro Sekunde</td></tr><tr><td>Widerstand</td><td class="num">R</td><td class="num">Ω, kΩ</td><td>Engstelle im Rohr</td></tr></tbody></table></div>
+<div class="box merke"><b class="t">Formeln</b><p><code>U = R · I</code> · <code>I = U / R</code> · <code>R = U / I</code> · LED: <code>R = (U - UF) / I</code></p></div>`,
+ex:[
+ {t:'num',q:'Velolicht: Drei AA-Batterien (je 1.5 V) in Reihe und eine weisse LED (3 V) mit 15 mA. Wie gross muss der Vorwiderstand sein?',a:100,u:'Ω',hint:'Erst die Batteriespannung bestimmen: 4.5 V.',sol:'(4.5 V - 3 V) / 0.015 A = 100 Ω'},
+ {t:'num',q:'Durch einen Widerstand mit 2.2 kΩ fliessen 5 mA. Wie gross ist die Spannung?',a:11,u:'V',hint:'Beide Werte zuerst umwandeln: 2200 Ω und 0.005 A.',sol:'2200 Ω · 0.005 A = 11 V'},
+ {t:'num',q:'USB (5 V), rote LED (2 V), Vorwiderstand 330 Ω. Wie gross ist der Strom in mA?',a:9.1,u:'mA',tol:.03,hint:'Am Widerstand liegen 3 V.',sol:'3 V / 330 Ω ≈ 0.0091 A = 9.1 mA'},
+ {t:'pred',q:'Grüne LED mit 680 Ω an 12 V. Was passiert?',sim:()=>ring(3,1,{l:{0:B(12)},t:{1:R(680)},r:{0:L('gruen')}}),o:YESLED,why:'(12 V - 2.2 V) / 680 Ω ergibt rund 14 mA. Das ist ein sicherer Wert.'},
+ {t:'pred',q:'S1 ist offen, S2 ist offen, die beiden liegen parallel. Was passiert?',sim:()=>P.par(0,0),o:YESNO,why:'Beide Wege sind offen, der Kreis ist unterbrochen.'},
+ {t:'mc',q:'Die Batterie einer Taschenlampe ist fast leer, die Lampe leuchtet schwach. Was hat sich verändert?',o:[['Die Spannung ist gesunken, darum fliesst weniger Strom',1,'I = U / R: Sinkt U, sinkt auch I.'],['Der Widerstand der Lampe ist auf null gesunken',0,'Dann würde sie heller leuchten.'],['Der Strom wurde unterwegs verbraucht',0,'Strom wird nicht verbraucht.']]},
+ {t:'mc',q:'Welche Aussage über die LED stimmt?',o:[['Das lange Bein gehört Richtung Plus',1,'Das ist die Anode.'],['Sie braucht nie einen Widerstand',0,'Ohne Widerstand brennt sie meist durch.'],['Die Richtung ist egal',0,'Sie ist eine Einbahnstrasse.']]},
+ {t:'mc',q:'Ein Gerät soll nur laufen, wenn der Schlüssel steckt und der Startknopf gedrückt ist. Welche Schaltung passt?',o:[['Schloss und Knopf in Reihe',1,'Beides muss geschlossen sein: UND.'],['Schloss und Knopf parallel',0,'Dann genügte einer von beiden.'],['Nur der Knopf',0,'Dann bräuchte es keinen Schlüssel.']]},
+ {t:'mc',q:'In einer Lichterkette brennt eine Lampe durch, und alle gehen aus. Wie ist sie geschaltet?',o:[['In Reihe',1,'Es gibt nur einen Weg. Ist er unterbrochen, ist alles dunkel.'],['Parallel',0,'Parallel würden die anderen weiterleuchten.'],['Das lässt sich nicht sagen',0,'Das Verhalten verrät die Schaltung.']]},
+ {t:'mc',q:'Sie messen vor und nach einem Widerstand den Strom. Was erwarten Sie?',o:[['Der gleiche Wert',1,'Der Widerstand bremst den ganzen Kreis, der Strom ist überall gleich.'],['Danach ist er kleiner',0,'Das stimmt nicht: Die Bremse wirkt auf den ganzen Ring.'],['Danach ist er null',0,'Dann wäre der Kreis offen.']]},
+ {t:'match',q:'Ordnen Sie zu.',pairs:[['Volt','Spannung'],['Ampere','Strom'],['Ohm','Widerstand'],['Anode','langes Bein der LED']]},
+ {t:'gen',q:'Gemischtes Rechnen',make:()=>pick([GEN.i,GEN.u,GEN.r,GEN.led])()},
+]});
+
+/* ---------- Generatoren, die in mehreren Kapiteln gebraucht werden ---------- */
+const findGen=q=>CH.flatMap(c=>c.ex).find(e=>e.t==='gen'&&e.q===q).make;
+const GEN={vr:()=>findGen('Spannung am Vorwiderstand')(),i:()=>findGen('Strom berechnen')(),u:()=>findGen('Spannung berechnen')(),r:()=>findGen('Widerstand berechnen')(),led:()=>findGen('Vorwiderstand berechnen')()};
+CH.forEach(c=>c.ex.forEach((e,i)=>{e.id=c.id+'-'+i}));
+const taskIds=T.filter(t=>t.check).map(t=>'w-'+t.id);
+const ids=c=>c.id==='werkstatt'?taskIds:c.ex.map(e=>e.id);
+const total=()=>CH.reduce((n,c)=>n+ids(c).length,0);
+const doneOf=c=>ids(c).filter(i=>S.done[i]).length;
+
+/* ---------- Übungen ---------- */
+function mark(ex,card){S.done[ex.id]=true;save();card.classList.add('done');refreshNav()}
+function fb(host,kind,text){host.innerHTML=`<div class="fb ${kind}">${text}</div>`}
+function exCard(ex,n){
+  const card=el(`<article class="ex ${S.done[ex.id]?'done':''}"><div class="exh"><span class="tag">Übung ${n}</span><span class="badge">✓ gelöst</span></div></article>`);
+  const add=h=>{const e=typeof h==='string'?el(h):h;card.append(e);return e};
+  ({mc:mcEx,pred:mcEx,num:numEx,gen:genEx,match:matchEx,tt:ttEx})[ex.t](ex,card,add);return card}
+function mcEx(ex,card,add){
+  add(`<p>${ex.q}</p>`);
+  if(ex.sym)add(`<div class="symshow">${icon(ex.sym,{c:'rot'})}</div>`);
+  let sim=null;
+  if(ex.sim){sim=new Sim(ex.sim(),{frozen:true,locked:true,nostatus:ex.t!=='pred',scale:1,alt:'Schaltung zur Aufgabe',...(ex.simo||{})});add(sim.root)}
+  const pred=ex.t==='pred',right=pred?outcome(ex.sim()):null;
+  const opts=pred?ex.o:shuffle(ex.o);const box=add('<div class="opts"></div>'),f=add('<div aria-live="polite"></div>');
+  opts.forEach(o=>{const b=el(`<button type="button" class="opt">${o[0]}</button>`);box.append(b);
+    b.onclick=()=>{$$('.opt',box).forEach(x=>x.classList.remove('f'));const ok=pred?o[1]===right:!!o[1];
+      if(ok){b.classList.add('r');fb(f,'ok','✓ Richtig. '+(pred?ex.why:o[2]));mark(ex,card);if(sim)sim.reveal()}
+      else{b.classList.add('f');fb(f,'no','✗ Noch nicht. '+(pred?'Überlegen Sie noch einmal: Wo fliesst der Strom entlang?':o[2]))}}})}
+function askNum(p,host,onRight){
+  const id='n'+(++SIMID);
+  const fm=el(`<form class="numrow"><input id="${id}" type="text" inputmode="decimal" autocomplete="off" aria-label="Ihre Antwort"><span class="num">${p.u||''}</span><button class="btn pri" type="submit">Prüfen</button></form>`);
+  const f=el('<div aria-live="polite"></div>'),extra=el('<div class="btnrow"></div>');host.append(fm,f,extra);let miss=0;
+  fm.onsubmit=ev=>{ev.preventDefault();const raw=$('input',fm).value.trim().replace(',','.').replace(/['’\s]/g,'');const x=parseFloat(raw);
+    if(raw===''||isNaN(x)){fb(f,'tip','Geben Sie eine Zahl ein.');return}
+    const tol=Math.max(Math.abs(p.a)*(p.tol||.02),1e-9);
+    if(Math.abs(x-p.a)<=tol){fb(f,'ok',`✓ Richtig. <span class="mono">${p.sol}</span>`);extra.innerHTML='';onRight();return}
+    miss++;const off=[1000,.001].some(m=>Math.abs(x-p.a*m)<=Math.abs(p.a*m)*.03);
+    fb(f,'no','✗ Noch nicht. '+(off?'Ihr Wert ist um den Faktor 1000 daneben. Prüfen Sie die Einheiten.':'Tipp: '+p.hint));
+    if(miss>=2&&!extra.children.length){const b=el('<button type="button" class="btn">Lösung zeigen</button>');b.onclick=()=>fb(f,'tip',`Lösungsweg: <span class="mono">${p.sol}</span>`);extra.append(b)}}}
+function numEx(ex,card,add){add(`<p>${ex.q}</p>`);askNum(ex,card,()=>mark(ex,card))}
+function genEx(ex,card,add){const NEED=3;add(`<h3>${ex.q}</h3>`);const pips=add('<div class="pips"></div>'),body=add('<div style="display:grid;gap:10px"></div>');
+  const c=()=>S.gen[ex.id]||0,up=()=>{pips.innerHTML=Array.from({length:NEED},(_, i)=>`<i class="${c()>i?'on':''}"></i>`).join('')+`<span>${Math.min(c(),NEED)} von ${NEED} richtig</span>`};
+  const next=()=>{body.innerHTML='';const p=ex.make();body.append(el(`<p>${p.q}</p>`));
+    askNum(p,body,()=>{S.gen[ex.id]=c()+1;save();up();if(c()>=NEED)mark(ex,card);$('button[type=submit]',body).disabled=true;const b=el('<button type="button" class="btn pri">Nächste Aufgabe</button>');b.onclick=next;body.append(b);b.focus({preventScroll:true})})};
+  up();next()}
+function matchEx(ex,card,add){add(`<p>${ex.q}</p>`);const rs=shuffle([...new Set(ex.pairs.map(p=>p[1]))]),rows=ex.pairs.map((p,i)=>{const id='mt'+(++SIMID);const r=el(`<div class="mrow"><label for="${id}">${p[0]}</label><select id="${id}"><option value="">Bitte wählen</option>${rs.map(v=>`<option>${v}</option>`).join('')}</select><span class="mk" aria-hidden="true"></span></div>`);return add(r)});
+  const b=add('<div class="btnrow"><button type="button" class="btn pri">Prüfen</button></div>'),f=add('<div aria-live="polite"></div>');
+  $('button',b).onclick=()=>{let ok=0;rows.forEach((r,i)=>{const y=$('select',r).value===ex.pairs[i][1];$('.mk',r).textContent=y?'✓':'✗';ok+=y});if(ok===rows.length){fb(f,'ok','✓ Alles richtig.');mark(ex,card)}else fb(f,'no',`✗ ${ok} von ${rows.length} richtig. Korrigieren Sie die Zeilen mit dem Kreuz.`)}}
+function ttEx(ex,card,add){add(`<p>${ex.q}</p>`);const rows=[[0,0],[0,1],[1,0],[1,1]],t=add(`<div class="tabwrap"><table><thead><tr><th>S1</th><th>S2</th><th>Lampe</th></tr></thead><tbody>${rows.map(([a,b],i)=>`<tr><td>${a?'zu':'offen'}</td><td>${b?'zu':'offen'}</td><td><button type="button" class="ttcell" data-i="${i}" aria-label="Lampe in Zeile ${i+1}">?</button></td></tr>`).join('')}</tbody></table></div>`);
+  const cells=$$('.ttcell',t);cells.forEach(c=>c.onclick=()=>{c.textContent={'?':'an',an:'aus',aus:'an'}[c.textContent]});
+  const b=add('<div class="btnrow"><button type="button" class="btn pri">Prüfen</button></div>'),f=add('<div aria-live="polite"></div>');
+  $('button',b).onclick=()=>{let bad=0;cells.forEach((c,i)=>{if((c.textContent==='an')!==!!ex.fn(...rows[i].map(Boolean))||c.textContent==='?')bad++});if(!bad){fb(f,'ok','✓ Richtig. In der Tabelle steht "zu" für einen geschlossenen Schalter.');mark(ex,card)}else fb(f,'no',`✗ ${bad} Zeile${bad>1?'n stimmen':' stimmt'} noch nicht. Stellen Sie sich jede Zeile als Schaltung vor.`)}}
+
+/* ---------- Interaktive Teile in den Kapiteln ---------- */
+const tt2=(fn)=>{const rows=[[0,0],[0,1],[1,0],[1,1]];return el(`<div class="tabwrap"><table><thead><tr><th>S1</th><th>S2</th><th>Lampe</th></tr></thead><tbody>${rows.map(([a,b])=>`<tr data-r="${a}${b}"><td>${a?'zu':'offen'}</td><td>${b?'zu':'offen'}</td><td>${fn(a,b)?'an':'aus'}</td></tr>`).join('')}</tbody></table></div>`)};
+const W={
+  kreis:h=>h.append(new Sim(P.swClosed(),{alt:'Stromkreis mit Batterie, Schalter und Lampe'}).root),
+  syms:h=>h.append(el(`<div class="syms">${[['bat','Batterie'],['lamp','Lampe'],['sw','Schalter'],['tas','Taster'],['res','Widerstand'],['led','LED']].map(([t,n])=>`<figure>${icon(t,{c:'rot'})}<figcaption>${n}</figcaption></figure>`).join('')}</div>`)),
+  'm-u':h=>h.append(new Model({sr:false,r:100,u:6}).root),
+  'm-r':h=>h.append(new Model({su:false,u:9,r:470}).root),
+  'm-ohm':h=>h.append(new Model({calc:true,diagram:true,u:9,r:470,rs:[100,150,220,330,470,680,1000]}).root),
+  probe:h=>{const b=P.probe(),s=new Sim(b,{probes:[{k:'h1_0',n:'M1',below:1},{k:'h3_0',n:'M2',below:1}],alt:'Stromkreis mit zwei Messstellen'});
+    const sel=el(`<label class="ctrls" style="margin-bottom:6px"><span>Batterie</span><select id="probe-u">${[1.5,3,6,9,12].map(v=>`<option ${v===9?'selected':''} value="${v}">${v} V</option>`).join('')}</select></label>`);
+    $('select',sel).onchange=e=>{b.els.v0_0.v=+e.target.value;s.draw()};h.append(sel,s.root)},
+  tri:h=>{const F={U:'U = R · I',R:'R = U / I',I:'I = U / R'};let cur='I';
+    const n=el(`<div class="tri"><svg viewBox="0 0 200 170" role="img" aria-label="Formeldreieck mit U oben, R und I unten"><path class="tank" d="M100 8 L192 162 L8 162 Z"/><line class="w" x1="52" y1="88" x2="148" y2="88"/><line class="w" x1="100" y1="88" x2="100" y2="162"/><text class="tritext" data-l="U" x="100" y="70" text-anchor="middle">U</text><text class="tritext" data-l="R" x="66" y="140" text-anchor="middle">R</text><text class="tritext" data-l="I" x="134" y="140" text-anchor="middle">I</text></svg><div style="display:grid;gap:10px"><div class="btnrow" role="group" aria-label="Gesuchte Grösse">${['U','R','I'].map(k=>`<button type="button" class="btn" data-k="${k}">${k} gesucht</button>`).join('')}</div><div class="big" aria-live="polite"></div></div></div>`);
+    const up=()=>{$('.big',n).textContent=F[cur];$$('.tritext',n).forEach(t=>t.classList.toggle('off',t.dataset.l===cur));$$('.btn',n).forEach(b=>b.setAttribute('aria-pressed',b.dataset.k===cur));$$('.btn',n).forEach(b=>b.classList.toggle('pri',b.dataset.k===cur))};
+    $$('.btn',n).forEach(b=>b.onclick=()=>{cur=b.dataset.k;up()});up();h.append(n)},
+  ledlab:h=>{const b=ring(3,1,{l:{0:B(9)},t:{1:R(470)},r:{0:L('rot')}});let rv=470,rk='h1_0';
+    const c=el(`<div class="ctrls"><label>Batterie <select id="ll-u">${[1.5,3,4.5,5,6,9,12].map(v=>`<option value="${v}" ${v===9?'selected':''}>${v} V</option>`).join('')}</select></label><label>Widerstand <select id="ll-r"><option value="0">kein</option>${[47,100,220,330,390,470,680,1000,2200,4700].map(v=>`<option value="${v}" ${v===470?'selected':''}>${fmtR(v)}</option>`).join('')}</select></label><label>Farbe <select id="ll-c">${Object.entries(LED).map(([k,l])=>`<option value="${k}">${l.n}</option>`).join('')}</select></label><button type="button" class="btn" id="ll-f">LED umdrehen</button><button type="button" class="btn pri" id="ll-n" hidden>Neue LED einsetzen</button></div>`);
+    const tiles=el(`<div class="tiles"><div class="tile"><span>an der LED</span><b data-t="l"></b></div><div class="tile"><span>am Widerstand</span><b data-t="r"></b></div><div class="tile"><span>Strom</span><b data-t="i"></b></div></div>`);
+    const s=new Sim(b,{alt:'LED mit Vorwiderstand an einer Batterie',onchange:x=>{const q=x.r.by,e=b.els.v3_0,rr=q[rk];$('#ll-n',c).hidden=!e.dead;$('[data-t="l"]',tiles).textContent=fmtU(q.v3_0.U);$('[data-t="r"]',tiles).textContent=b.els[rk].t==='res'?fmtU(rr.U):'0 V';$('[data-t="i"]',tiles).textContent=fmtI(q.v3_0.I)}});
+    $('#ll-u',c).onchange=e=>{b.els.v0_0.v=+e.target.value;s.draw()};
+    $('#ll-r',c).onchange=e=>{rv=+e.target.value;b.els[rk]=rv?{t:'res',v:rv}:{t:'wire'};s.draw()};
+    $('#ll-c',c).onchange=e=>{b.els.v3_0.c=e.target.value;s.draw()};
+    $('#ll-f',c).onclick=()=>{b.els.v3_0.flip=!b.els.v3_0.flip;s.draw()};
+    $('#ll-n',c).onclick=()=>{delete b.els.v3_0.dead;s.draw()};
+    h.append(c,s.root,tiles)},
+  taster:h=>h.append(new Sim(ring(3,1,{l:{0:B(9)},t:{1:TA('T')},r:{0:L('gelb')},b:{1:R(470)}}),{alt:'LED mit Taster'}).root),
+  und:h=>logic(h,P.serOpen(),(a,b)=>a&&b),
+  oder:h=>logic(h,P.par(0,0),(a,b)=>a||b),
+  ser:h=>h.append(new Sim(P.lampSer(1),{scale:1,alt:'Zwei Lampen in Reihe'}).root),
+  pl:h=>h.append(new Sim(P.lampPar(1),{scale:1,alt:'Zwei Lampen parallel'}).root),
+  werkstatt:h=>werkstatt(h),
+};
+function logic(h,b,fn){const t=tt2(fn);const k=n=>Object.keys(b.els).find(q=>b.els[q].name===n);const s=new Sim(b,{alt:'Zwei Schalter und eine Lampe',onchange:()=>{const r=`${+b.els[k('S1')].on}${+b.els[k('S2')].on}`;$$('tr',t).forEach(x=>x.classList.toggle('now',x.dataset.r===r))}});h.append(el('<div class="hint" style="margin-bottom:6px">Tippen Sie auf die Schalter. Die passende Zeile der Tabelle wird markiert.</div>'),s.root,t)}
+
+function werkstatt(host){
+  let cur=null;const wrap=el('<div class="wk"></div>');host.append(wrap);
+  const bar=el('<div class="tasks" role="group" aria-label="Bauaufträge"></div>');const card=el('<div class="panel" id="wk-card"></div>');wrap.append(bar,card);
+  const nav=()=>{bar.innerHTML='';T.forEach(t=>{const b=el(`<button type="button" class="task ${S.done['w-'+t.id]?'ok':''}" aria-pressed="${cur===t}">${t.n}</button>`);b.onclick=()=>open(t);bar.append(b)})};
+  const open=t=>{cur=t;nav();S.last=t.id;save();ACTIVE.forEach(a=>{if(a.isWk)ACTIVE.delete(a)});card.innerHTML='';
+    card.append(el(`<div style="display:grid;gap:6px"><div class="ptitle">${t.n}</div><p>${t.q}</p></div>`));
+    const b=S.boards[t.id]?clone(S.boards[t.id]):t.start();Object.values(b.els).forEach(e=>{if(e.t==='tas')e.on=false});
+    const sim=new Sim(b,{edit:true,id:'wk',scale:1.5,alt:'Baufeld',onchange:()=>{S.boards[t.id]=b;save()}});sim.isWk=true;card.append(sim.root);
+    const row=el('<div class="btnrow"></div>'),f=el('<div aria-live="polite"></div>');
+    if(t.check){const c=el('<button type="button" class="btn pri">Prüfen</button>');c.onclick=()=>{const m=t.check(b);if(m){fb(f,'no','✗ '+m)}else{fb(f,'ok','✓ Geschafft. Das funktioniert.');S.done['w-'+t.id]=true;save();nav();refreshNav()}};row.append(c)}
+    if(t.tip){const c=el('<button type="button" class="btn">Tipp</button>');c.onclick=()=>fb(f,'tip',t.tip);row.append(c)}
+    const rs=el('<button type="button" class="btn">Neu beginnen</button>');rs.onclick=()=>{delete S.boards[t.id];save();open(t)};row.append(rs);card.append(row,f)};
+  open(T.find(t=>t.id===S.last)||T[1])}
+
+/* ---------- Seite ---------- */
+function shell(){document.body.prepend(el(`<div class="app"><aside class="side"><a class="brand" href="#start">Erste Schaltkreise</a>
+<div class="overall"><span id="ov-t"></span><div class="bar"><i id="ov-b"></i></div></div>
+<nav aria-label="Kapitel"><ul class="nav" id="nav"></ul></nav>
+<div class="sidefoot"><div class="seg" role="group" aria-label="Darstellung"><button type="button" data-v="schaltplan">Schaltplan</button><button type="button" data-v="bunt">Bunt</button></div><div id="reset"></div></div></aside>
+<main class="main" id="main"><div class="col" id="view"></div></main></div>`));
+  $('#nav').innerHTML=`<li><a href="#start" data-id="start" style="--c:var(--nord4)"><span class="ico">${icon('wire')}</span><span>Start</span><span></span></a></li>`+CH.map(c=>`<li><a href="#${c.id}" data-id="${c.id}" style="--c:${c.c}"><span class="ico">${icon(c.ico,{c:'rot'})}</span><span>${c.n}</span><span class="cnt" data-c="${c.id}"></span></a></li>`).join('');
+  $$('.seg button').forEach(b=>b.onclick=()=>{S.variant=b.dataset.v;save();variant()});variant();resetUi()}
+function variant(){document.documentElement.dataset.variant=S.variant;$$('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.variant))}
+function resetUi(){const r=$('#reset');r.innerHTML='<button type="button" class="linkbtn">Fortschritt löschen</button>';$('button',r).onclick=()=>{r.innerHTML='<span>Wirklich löschen?</span> <button type="button" class="linkbtn" id="ry">Ja</button> · <button type="button" class="linkbtn" id="rn">Nein</button>';$('#ry').onclick=()=>{S.done={};S.gen={};S.boards={};save();resetUi();refreshNav();route()};$('#rn').onclick=resetUi}}
+function refreshNav(){const t=total(),d=CH.reduce((n,c)=>n+doneOf(c),0);$('#ov-t').textContent=`${d} von ${t} Übungen gelöst`;$('#ov-b').style.width=(t?d/t*100:0)+'%';
+  CH.forEach(c=>{const e=$(`[data-c="${c.id}"]`),a=doneOf(c),n=ids(c).length;e.textContent=`${a}/${n}`;e.classList.toggle('full',a===n)})}
+function startView(v){
+  const hero=ring(4,2,{l:{1:B(9)},t:{1:SW(1,'S')},r:{0:R(470)},b:{1:L('gruen')}});
+  v.append(el(`<header class="chead" style="--c:var(--nord8)"><span class="eyebrow">Elektronik ohne Vorkenntnisse</span><h1>Erste Schaltkreise</h1><p class="lead">Spannung, Strom, Widerstand, LED und Schalter: Sie probieren alles direkt am Bildschirm aus und üben in jedem Kapitel.</p></header>`));
+  const p=el('<div class="panel"><div class="ptitle">Ihre erste Schaltung</div><div class="hint">Tippen Sie auf den gelb markierten Schalter S.</div></div>');p.append(new Sim(hero,{alt:'Grüne LED mit Widerstand, Schalter und Batterie'}).root);v.append(p);
+  v.append(el(`<div class="prose"><p>Sie brauchen weder Bauteile noch Vorwissen. Arbeiten Sie die Kapitel der Reihe nach durch. Jedes hat denselben Aufbau: kurze Idee, selbst ausprobieren, üben. Falsche Antworten kosten nichts, Sie erhalten sofort eine Erklärung und versuchen es noch einmal.</p><p>Ihr Fortschritt wird nur in diesem Browser gespeichert.</p></div>`));
+  const g=el('<div class="chapters"></div>');CH.forEach((c,i)=>g.append(el(`<a href="#${c.id}" style="--c:${c.c}">${icon(c.ico,{c:'rot'})}<span>${i+1}. ${c.n}<small>${c.s}</small></span></a>`)));v.append(g)}
+function route(){
+  const id=location.hash.slice(1),v=$('#view'),i=CH.findIndex(c=>c.id===id);ACTIVE.clear();v.innerHTML='';
+  $$('#nav a').forEach(a=>{a.dataset.id===(i<0?'start':id)?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
+  if(i<0){startView(v);scrollTo(0,0);return}
+  const c=CH[i];v.append(el(`<header class="chead" style="--c:${c.c}"><span class="eyebrow">Kapitel ${i+1} von ${CH.length}</span><h1>${c.n}</h1><p class="lead">${c.lead}</p></header>`));
+  const t=document.createElement('template');t.innerHTML=c.html;v.append(t.content);
+  $$('[data-w]',v).forEach(w=>{if(W[w.dataset.w])W[w.dataset.w](w)});
+  if(c.ex.length){v.append(el(`<h2>Übungen</h2>`));const ex=el('<div class="exs"></div>');c.ex.forEach((e,n)=>ex.append(exCard(e,n+1)));v.append(ex)}
+  const prev=CH[i-1],next=CH[i+1];v.append(el(`<nav class="pager" aria-label="Weiter"><a class="btn" href="#${prev?prev.id:'start'}">Zurück: ${prev?prev.n:'Start'}</a>${next?`<a class="btn pri" href="#${next.id}">Weiter: ${next.n}</a>`:`<a class="btn pri" href="#start">Zur Übersicht</a>`}</nav>`));
+  scrollTo(0,0)}
+shell();refreshNav();route();addEventListener('hashchange',route);requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>

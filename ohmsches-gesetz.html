@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>html{min-height:100%}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<!-- Entscheidungen:
+Einsatztyp: Lernmaterial Informatik (Elektronik-Grundlagen), Selbststudium für Klassen, Sie-Form.
+Funktionen: voll interaktiv: Live-Regler, Messreihe mit Diagramm, Schritt-für-Schritt-Beispiele (Vor/Zurück), Je-desto-Versuch, Zufallsaufgaben in sechs Stufen, sofortige Rückmeldung, Python-Abschnitt mit Kopierknopf.
+Daten: Fortschritt nur per localStorage. Kein Export.
+Varianten: A Messlabor (technisch, Millimeterpapier, Polar Night), B Bunt (freundlich, runde Formen, Aurora-Karten). Umschalter in der oberen Leiste.
+Farbcode: U nord13, R nord12, I nord8 auf der ganzen Seite, Text darauf immer nord0.
+-->
+<title>Das ohmsche Gesetz</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,400;0,600;1,400&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+/* Layout: eine Lesespalte als Lernweg von oben nach unten: Spüren, Entdecken, Rechnen, Einheiten, Je-desto, Python, Üben. */
+:root{
+  --nord0:#2E3440;--nord1:#3B4252;--nord2:#434C5E;--nord3:#4C566A;--nord4:#D8DEE9;--nord5:#E5E9F0;--nord6:#ECEFF4;
+  --nord7:#8FBCBB;--nord8:#88C0D0;--nord9:#81A1C1;--nord10:#5E81AC;--nord11:#BF616A;--nord12:#D08770;--nord13:#EBCB8B;--nord14:#A3BE8C;--nord15:#B48EAD;
+  --bg:var(--nord6);--surface:var(--nord5);--surface-2:var(--nord4);--text:var(--nord0);--text-muted:var(--nord3);
+  --accent:var(--nord10);--accent-soft:var(--nord9);--ok:var(--nord14);--warn:var(--nord13);--bad:var(--nord11);--special:var(--nord15);--info:var(--nord8);
+  --head:var(--nord0);--line:var(--nord0);--grid:rgba(76,86,106,.11);--code:var(--nord0);--cmt:var(--nord4);
+  --qu:var(--nord13);--qr:var(--nord12);--qi:var(--nord8);
+  --font:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Google Sans Code",ui-monospace,"Cascadia Code",Consolas,"SF Mono",monospace;
+  --r:5px;--r2:3px;--h1:42px;--lab:var(--font-mono);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:var(--nord0);--surface:var(--nord1);--surface-2:var(--nord2);--text:var(--nord6);--text-muted:var(--nord4);--accent:var(--nord8);--head:var(--nord2);--line:var(--nord6);--grid:rgba(216,222,233,.06);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:var(--nord0);--surface:var(--nord1);--surface-2:var(--nord2);--text:var(--nord6);--text-muted:var(--nord4);--accent:var(--nord8);--head:var(--nord2);--line:var(--nord6);--grid:rgba(216,222,233,.06);color-scheme:dark}
+:root[data-variant="bunt"]{--r:20px;--r2:12px;--h1:52px;--lab:var(--font)}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font:400 17px/1.6 var(--font)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+:root[data-variant="labor"] body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:20px 20px}
+button,select,input{font:inherit;color:inherit}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance}
+h1{font-size:var(--h1);font-weight:700}
+h2{font-size:27px;font-weight:600}
+:root[data-variant="bunt"] h2{font-weight:700}
+h3{font-size:18px;font-weight:600}
+p{margin:0}
+code,.mono{font-family:var(--font-mono);font-size:.9em}
+p code,li code,td code{background:var(--surface);padding:1px 5px;border-radius:3px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--surface-2)}
+.topin{max-width:860px;margin:0 auto;padding-block:8px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.prog{flex:1 1 180px;display:grid;gap:3px;font-size:13px;color:var(--text-muted);min-width:0}
+.bar{height:7px;background:var(--surface-2);border-radius:9px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s}
+.seg{display:inline-flex;border:1px solid var(--surface-2);border-radius:var(--r2);overflow:hidden}
+.seg button{border:0;background:transparent;padding:3px 10px;font-size:13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface-2);font-weight:600}
+.wrap{max-width:860px;margin:0 auto;padding-block:24px 56px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:44px}
+.wrap>*{min-width:0}
+.sec{display:grid;gap:16px;scroll-margin-top:70px}
+.sec>*{min-width:0}
+.eyebrow{font-family:var(--lab);font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted)}
+.prose{display:grid;gap:12px;max-width:68ch}
+.prose ul,.prose ol{margin:0;padding-left:22px;display:grid;gap:6px}
+.hero{background:var(--head);color:var(--nord6);border-radius:var(--r);padding:26px;display:grid;gap:18px;--text:var(--nord6);--text-muted:var(--nord4);--surface-2:var(--nord3);--line:var(--nord6);--accent:var(--nord8)}
+.hero>*{min-width:0}
+:root[data-variant="bunt"] .hero{background:var(--nord8);color:var(--nord0);--text:var(--nord0);--text-muted:var(--nord1);--surface-2:var(--nord9);--line:var(--nord0);--accent:var(--nord0)}
+.hero .eyebrow{color:inherit}
+.bigeq{font-family:var(--font-mono);font-weight:600;font-size:clamp(25px,6.4vw,40px);display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.chip{display:inline-block;padding:0 .35em;border-radius:6px;color:var(--nord0);font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums}
+.q-u{background:var(--qu)}.q-r{background:var(--qr)}.q-i{background:var(--qi)}
+:root[data-variant="bunt"] .hero .q-i{background:var(--nord6)}
+.herogrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,240px);gap:20px;align-items:center}
+.herogrid>*{min-width:0}
+.circ{width:100%;height:auto;display:block}
+.w{stroke:var(--line);stroke-width:2.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.flow{stroke:var(--qi);stroke-width:5;stroke-linecap:round;stroke-dasharray:0 16;fill:none}
+:root[data-variant="bunt"] .hero .flow{stroke:var(--nord6)}
+.fil{fill:var(--head)}
+:root[data-variant="bunt"] .hero .fil{fill:var(--nord8)}
+.slider{display:grid;grid-template-columns:118px minmax(0,1fr) 78px;gap:10px;align-items:center;font-size:15px}
+.slider input{width:100%;accent-color:var(--accent)}
+.slider output{font-family:var(--font-mono);text-align:right;font-variant-numeric:tabular-nums}
+.stack{display:grid;gap:10px}
+.stations{display:flex;flex-wrap:wrap;gap:6px}
+.stations a{padding:3px 12px;border:1px solid var(--surface-2);border-radius:99px;font-size:14px;color:var(--text);text-decoration:none;background:var(--bg)}
+.stations a:hover{border-color:var(--accent)}
+.panel{background:var(--surface);border-radius:var(--r);padding:16px;display:grid;gap:12px}
+.panel>*{min-width:0}
+.hint{font-size:15px;color:var(--text-muted)}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,250px);gap:16px}
+.lab>*{min-width:0}
+svg.chart{width:100%;height:auto;display:block;background:var(--bg);border-radius:var(--r2)}
+.tx{font-family:var(--font-mono);font-size:12px;fill:var(--text-muted);font-variant-numeric:tabular-nums}
+.gl{stroke:var(--surface-2);stroke-width:1}
+.ax{stroke:var(--line);stroke-width:1.6}
+.tabwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:5px 9px;border-bottom:1px solid var(--surface-2)}
+th{font-weight:600}
+td.n,th.n{text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.ctrls label{display:flex;gap:8px;align-items:center;font-size:15px}
+select{background:var(--bg);border:1px solid var(--surface-2);border-radius:var(--r2);padding:4px 8px}
+.btn{padding:6px 14px;border-radius:var(--r2);border:1px solid var(--accent);background:transparent;cursor:pointer;font-size:15px}
+.btn:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.btn.pri{background:var(--accent);color:var(--bg);font-weight:600}
+.btn.pri:hover:not(:disabled){background:var(--accent-soft);color:var(--nord0)}
+.btn:disabled{opacity:.45;cursor:default}
+.box{padding:13px 16px;border-radius:var(--r2);display:grid;gap:5px}
+.box b.t{font-family:var(--lab);font-size:13px;letter-spacing:.04em;text-transform:uppercase}
+.merke{background:color-mix(in srgb,var(--special) 22%,transparent);border:1px solid var(--special)}
+.achtung{background:color-mix(in srgb,var(--warn) 28%,transparent);border:1px solid var(--warn)}
+.tri{display:grid;grid-template-columns:minmax(0,180px) minmax(0,1fr);gap:18px;align-items:center}
+.tri>*{min-width:0}
+.tri svg{width:100%;height:auto}
+.tl{font-family:var(--font-mono);font-weight:600;font-size:32px;fill:var(--nord0)}
+.tp{stroke:var(--line);stroke-width:2.4}
+.tcov{fill:var(--surface-2);stroke:var(--line);stroke-width:2.4}
+.res{font-family:var(--font-mono);font-weight:600;font-size:27px}
+.steps{display:grid;gap:7px;min-height:150px;align-content:start}
+.st{display:grid;gap:1px}
+.st code{font-size:16px;overflow-x:auto;white-space:nowrap}
+.st span{font-size:15px;color:var(--text-muted)}
+.st.now code{font-weight:600}
+.stepbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.stepbar .c{font-family:var(--lab);font-size:13px;color:var(--text-muted)}
+.effect{display:grid;gap:8px}
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tile{padding:7px 10px;background:var(--bg);border-radius:var(--r2);display:grid;min-width:0}
+.tile span{font-size:13px;color:var(--text-muted)}
+.tile b{font-family:var(--font-mono);font-weight:600;font-size:21px;font-variant-numeric:tabular-nums}
+.ibar{position:relative;height:24px;background:var(--bg);border-radius:var(--r2);overflow:hidden}
+.ibar i{display:block;height:100%;background:var(--qi);transition:width .25s}
+.ibar s{position:absolute;top:0;bottom:0;width:2px;background:var(--line);text-decoration:none}
+pre{margin:0;background:var(--code);color:var(--nord6);padding:14px 16px;border-radius:var(--r2);overflow-x:auto;font-family:var(--font-mono);font-size:.9em;line-height:1.5}
+pre .k{color:var(--nord9)}pre .s{color:var(--nord14)}pre .m{color:var(--nord15)}pre .c{color:var(--cmt);font-style:italic}pre .f{color:var(--nord8)}
+.exgroup{display:grid;gap:12px}
+.ghead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.gno{font-family:var(--lab);font-size:13px;letter-spacing:.04em;color:var(--text-muted)}
+:root[data-variant="bunt"] .gno{background:var(--gc);color:var(--nord0);padding:1px 10px;border-radius:99px;font-weight:600}
+.exs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.ex{background:var(--surface);border-radius:var(--r);padding:14px 16px;display:grid;gap:10px;align-content:start}
+.ex>*{min-width:0}
+.exh{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.exh b{font-weight:600}
+.badge{display:none;font-size:12.5px;font-weight:600;padding:0 8px;border-radius:99px;background:var(--ok);color:var(--nord0);white-space:nowrap}
+.ex.done .badge{display:inline-block}
+.opts{display:grid;gap:7px}
+.opt{text-align:left;padding:8px 12px;border-radius:var(--r2);border:1px solid var(--surface-2);background:var(--bg);cursor:pointer;line-height:1.4;font-size:16px}
+.opt:hover{border-color:var(--accent)}
+.opt.r{background:var(--ok);border-color:var(--ok);color:var(--nord0)}
+.opt.f{background:color-mix(in srgb,var(--bad) 25%,transparent);border-color:var(--bad)}
+.fb{padding:9px 12px;border-radius:var(--r2);font-size:15.5px}
+.fb.ok{background:color-mix(in srgb,var(--ok) 28%,transparent)}
+.fb.no{background:color-mix(in srgb,var(--bad) 18%,transparent)}
+.fb.tip{background:color-mix(in srgb,var(--info) 22%,transparent)}
+.numrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.numrow input{width:112px;padding:5px 9px;border:1px solid var(--surface-2);border-radius:var(--r2);background:var(--bg);font-family:var(--font-mono)}
+.pips{display:flex;gap:5px;align-items:center;font-size:13px;color:var(--text-muted)}
+.pips i{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--text-muted)}
+.pips i.on{background:var(--ok);border-color:var(--ok)}
+.rowbtn{padding:0 10px;border:1px solid var(--surface-2);background:var(--bg);border-radius:var(--r2);cursor:pointer;font-size:14px}
+.rowbtn.f{border-color:var(--bad)}.rowbtn.r{background:var(--ok);color:var(--nord0)}
+.foot{font-size:14px;color:var(--text-muted);display:flex;gap:10px;flex-wrap:wrap}
+.linkbtn{background:none;border:0;padding:0;text-decoration:underline;cursor:pointer;font-size:14px;color:inherit}
+@media (max-width:680px){
+  .herogrid,.lab{grid-template-columns:minmax(0,1fr)}
+  .circ{max-width:230px}
+  :root{--h1:32px}:root[data-variant="bunt"]{--h1:36px}
+  .slider{grid-template-columns:minmax(0,1fr) 78px}
+  .slider input{grid-column:1/-1;grid-row:2}
+  .tri{grid-template-columns:minmax(0,1fr)}
+  .tri svg{max-width:170px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<script>document.documentElement.dataset.variant="labor"</script>
+<div class="top"><div class="topin"><div class="prog"><span id="pt"></span><div class="bar"><i id="pb"></i></div></div>
+<div class="seg" role="group" aria-label="Darstellung"><button type="button" data-v="labor">Messlabor</button><button type="button" data-v="bunt">Bunt</button></div></div></div>
+
+<main class="wrap">
+<header class="hero">
+  <span class="eyebrow">Spannung, Widerstand, Strom</span>
+  <h1>Das ohmsche Gesetz</h1>
+  <div class="bigeq" aria-live="off"><span class="chip q-u" id="eu"></span><span>=</span><span class="chip q-r" id="er"></span><span>·</span><span class="chip q-i" id="ei"></span></div>
+  <div class="herogrid">
+    <div class="stack">
+      <div class="slider"><label for="hu">Spannung U</label><input id="hu" type="range" min="0" max="12" step="0.5" value="9"><output id="ou"></output></div>
+      <div class="slider"><label for="hr">Widerstand R</label><input id="hr" type="range" min="0" max="9" step="1" value="5"><output id="or"></output></div>
+      <p>Bewegen Sie die Regler: Der Strom I passt sich sofort an.</p>
+    </div>
+    <svg class="circ" viewBox="0 0 240 150" role="img" aria-label="Stromkreis mit Batterie, Widerstand und Strommessgerät">
+      <path class="w" d="M30 62 L30 20 L210 20 L210 130 L30 130 L30 88"/>
+      <path class="flow" id="fl" d="M30 62 L30 20 L210 20 L210 130 L30 130 L30 88"/>
+      <line class="w" x1="12" y1="62" x2="48" y2="62"/><line class="w" x1="22" y1="88" x2="38" y2="88" stroke-width="5"/>
+      <text x="50" y="56" style="font:600 16px var(--font-mono);fill:var(--text)">+</text><rect class="w fil" x="94" y="10" width="52" height="20"/>
+      <circle class="w fil" cx="210" cy="75" r="17"/><text x="210" y="81" text-anchor="middle" style="font:600 17px var(--font-mono);fill:var(--text)">A</text>
+    </svg>
+  </div>
+</header>
+
+<nav class="stations" aria-label="Abschnitte"><a href="#entdecken">Entdecken</a><a href="#rechnen">Rechnen</a><a href="#einheiten">Einheiten</a><a href="#jedesto">Je-desto</a><a href="#python">Python</a><a href="#ueben">Üben</a></nav>
+
+<section class="sec" id="entdecken">
+  <span class="eyebrow">Teil 1</span><h2>Entdecken Sie das Gesetz selbst</h2>
+  <div class="prose"><p>Georg Simon Ohm fand den Zusammenhang 1826 durch sorgfältiges Messen. Machen Sie es ihm nach: Legen Sie an ein Bauteil verschiedene Spannungen an und messen Sie jedes Mal den Strom.</p></div>
+  <div class="panel">
+    <div class="ctrls"><label>Bauteil <select id="xb"><option value="A">Bauteil A</option><option value="B">Bauteil B</option><option value="C">Bauteil C</option></select></label></div>
+    <div class="slider"><label for="xu">Spannung U</label><input id="xu" type="range" min="1" max="12" step="1" value="9"><output id="xo"></output></div>
+    <div class="ctrls"><button type="button" class="btn pri" id="xm">Messen</button><button type="button" class="btn" id="xq">U / I anzeigen</button><button type="button" class="btn" id="xc">Messungen löschen</button></div>
+    <div class="lab"><svg class="chart" id="xd" viewBox="0 0 460 290" role="img" aria-label="Diagramm der Messwerte: Strom gegen Spannung"></svg><div class="tabwrap" id="xt"></div></div>
+    <p class="hint">Für Bauteil A sind zwei Beispielmessungen schon eingetragen. Was fällt Ihnen auf, wenn Sie die Spannung verdoppeln? Wie sehen die Punkte im Diagramm aus?</p>
+  </div>
+  <div class="box merke"><b class="t">Das Ergebnis</b><p>Die Punkte liegen auf einer Geraden durch den Nullpunkt. Doppelte Spannung ergibt doppelten Strom. Der Quotient <code>U / I</code> bleibt für ein Bauteil immer gleich. Diese Konstante ist sein <b>Widerstand R</b>.</p></div>
+</section>
+
+<section class="sec" id="rechnen">
+  <span class="eyebrow">Teil 2</span><h2>Mit dem Formeldreieck umstellen</h2>
+  <div class="prose"><p>Aus <code>R = U / I</code> folgt die bekannte Form <code>U = R · I</code>. Wenn zwei Grössen bekannt sind, lässt sich die dritte berechnen. Decken Sie die gesuchte Grösse im Dreieck ab: Was nebeneinander steht, wird multipliziert. Was übereinander steht, wird dividiert.</p></div>
+  <div class="panel tri">
+    <svg viewBox="0 0 200 170" role="img" aria-label="Formeldreieck: U oben, R und I unten">
+      <path d="M100 8 L148 88 L52 88 Z" style="fill:var(--qu)"/><path d="M52 88 L100 88 L100 162 L8 162 Z" style="fill:var(--qr)"/><path d="M100 88 L148 88 L192 162 L100 162 Z" style="fill:var(--qi)"/>
+      <path class="tp" fill="none" d="M100 8 L192 162 L8 162 Z M52 88 L148 88 M100 88 L100 162"/>
+      <text class="tl" x="100" y="72" text-anchor="middle">U</text><text class="tl" x="66" y="140" text-anchor="middle">R</text><text class="tl" x="134" y="140" text-anchor="middle">I</text>
+      <path id="tc" class="tcov"/>
+    </svg>
+    <div class="stack"><div class="ctrls" role="group" aria-label="Gesuchte Grösse"><button type="button" class="btn" data-q="U">U gesucht</button><button type="button" class="btn" data-q="R">R gesucht</button><button type="button" class="btn" data-q="I">I gesucht</button></div><div class="res" id="tr" aria-live="polite"></div></div>
+  </div>
+  <div class="panel">
+    <div class="ctrls"><label>Beispiel <select id="sx"><option value="0">Strom gesucht</option><option value="1">Widerstand gesucht</option><option value="2">Spannung gesucht</option></select></label></div>
+    <div class="steps" id="ss" aria-live="polite"></div>
+    <div class="stepbar"><button type="button" class="btn" id="sb">Zurück</button><button type="button" class="btn pri" id="sf">Weiter</button><span class="c" id="sc"></span></div>
+  </div>
+</section>
+
+<section class="sec" id="einheiten">
+  <span class="eyebrow">Teil 3</span><h2>Die Einheiten-Falle</h2>
+  <div class="prose"><p>Die meisten Fehler entstehen nicht in der Formel, sondern bei den Einheiten. Die Formel gilt nur für Volt, Ohm und Ampere. Wandeln Sie vorher um:</p></div>
+  <div class="tabwrap"><table><thead><tr><th>Sie lesen</th><th>Das bedeutet</th><th>Rechnen Sie</th><th class="n">Beispiel</th></tr></thead><tbody>
+  <tr><td>mA (Milliampere)</td><td>ein Tausendstel Ampere</td><td>durch 1000</td><td class="n">20 mA = 0.02 A</td></tr>
+  <tr><td>kΩ (Kiloohm)</td><td>tausend Ohm</td><td>mal 1000</td><td class="n">4.7 kΩ = 4700 Ω</td></tr>
+  <tr><td>MΩ (Megaohm)</td><td>eine Million Ohm</td><td>mal 1 000 000</td><td class="n">1 MΩ = 1 000 000 Ω</td></tr></tbody></table></div>
+  <div class="box achtung"><b class="t">Abkürzung</b><p>Volt durch Kiloohm ergibt direkt Milliampere: <code>9 V / 3 kΩ = 3 mA</code>. Das spart Nullen.</p></div>
+</section>
+
+<section class="sec" id="jedesto">
+  <span class="eyebrow">Teil 4</span><h2>Je mehr, desto ...</h2>
+  <div class="prose"><p>Oft braucht es gar keine Rechnung. Der Strom ist proportional zur Spannung und umgekehrt proportional zum Widerstand. Probieren Sie es aus und sagen Sie das Ergebnis jeweils voraus.</p></div>
+  <div class="panel effect">
+    <div class="ctrls"><button type="button" class="btn" data-e="u2">U verdoppeln</button><button type="button" class="btn" data-e="u5">U halbieren</button><button type="button" class="btn" data-e="r2">R verdoppeln</button><button type="button" class="btn" data-e="r5">R halbieren</button><button type="button" class="btn" data-e="x">Zurücksetzen</button></div>
+    <div class="tiles"><div class="tile"><span>U</span><b id="eeu"></b></div><div class="tile"><span>R</span><b id="eer"></b></div><div class="tile"><span>I</span><b id="eei"></b></div></div>
+    <div class="ibar" role="img" id="eeb" aria-label="Balken für den Strom"><i></i><s style="left:25%"></s></div>
+    <p class="hint">Der Strich markiert den Startwert von 20 mA. Der ganze Balken entspricht 80 mA.</p>
+  </div>
+  <div class="box achtung"><b class="t">Grenzen des Gesetzes</b><p>Das Gesetz gilt für ohmsche Bauteile wie Widerstände und Drähte bei gleichbleibender Temperatur. Eine LED verhält sich anders: Unterhalb ihrer Durchlassspannung sperrt sie fast ganz, darüber steigt der Strom steil an. Auch eine Glühlampe ändert ihren Widerstand, wenn sie heiss wird.</p></div>
+</section>
+
+<section class="sec" id="python">
+  <span class="eyebrow">Teil 5</span><h2>Das Gesetz in Python</h2>
+  <div class="prose"><p>Eine Formel lässt sich direkt als Funktion schreiben. Die Einheiten bleiben auch hier Ihre Aufgabe: Python kennt weder Volt noch Ohm.</p></div>
+<div class="stack"><pre id="code"><span class="k">def</span> <span class="f">strom</span>(u, r):
+    <span class="c"># u in Volt, r in Ohm, Rückgabe in Ampere</span>
+    <span class="k">return</span> u / r
+
+i = <span class="f">strom</span>(<span class="m">9</span>, <span class="m">450</span>)
+<span class="f">print</span>(i * <span class="m">1000</span>, <span class="s">"mA"</span>)</pre><div class="ctrls"><button type="button" class="btn" id="cp">Code kopieren</button><span class="hint" id="cps" role="status"></span></div></div>
+</section>
+
+<section class="sec" id="ueben">
+  <span class="eyebrow">Teil 6</span><h2>Üben in sechs Stufen</h2>
+  <div class="prose"><p>Arbeiten Sie von oben nach unten. Karten mit Punkten liefern Zufallsaufgaben: Nach drei richtigen Lösungen gelten sie als erledigt, Sie können aber beliebig weiterüben. Nach zwei Fehlversuchen können Sie den Lösungsweg einblenden.</p></div>
+  <div id="ex" class="stack" style="gap:30px"></div>
+</section>
+<footer class="foot"><span>Der Fortschritt bleibt nur in diesem Browser.</span><span id="rs"></span></footer>
+</main>
+
+<script>
+const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>[...r.querySelectorAll(s)];
+const el=h=>{const t=document.createElement('template');t.innerHTML=h.trim();return t.content.firstElementChild};
+const pick=a=>a[Math.floor(Math.random()*a.length)],shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const clamp=(x,a,b)=>Math.min(b,Math.max(a,x)),rnd=(x,d=2)=>+x.toFixed(d);
+const REDUCED=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fI=i=>i<=0?'0 mA':i<1?rnd(i*1000,i<.01?2:1)+' mA':rnd(i,2)+' A',fR=r=>r>=1000?rnd(r/1000,2)+' kΩ':r+' Ω';
+const KEY='ohmsches-gesetz-v1';let S={done:{},gen:{},variant:'labor'};
+try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v)S={...S,...v}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let uid=0;
+
+/* Darstellung */
+function variant(){document.documentElement.dataset.variant=S.variant;$$('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.variant))}
+$$('.seg button').forEach(b=>b.onclick=()=>{S.variant=b.dataset.v;save();variant()});variant();
+
+/* Kopf: Live-Formel */
+const RS=[47,100,150,220,330,470,680,1000,2200,4700];let speed=0,off=0,lastT=0;
+function hero(){const u=+$('#hu').value,r=RS[+$('#hr').value],i=u/r;$('#ou').textContent=u+' V';$('#or').textContent=fR(r);$('#eu').textContent=u+' V';$('#er').textContent=r+' Ω';$('#ei').textContent=fI(i);
+  speed=i>0?clamp(40+40*Math.log10(i/.01),8,170):0;$('#fl').style.opacity=i>0?1:0}
+$('#hu').oninput=$('#hr').oninput=hero;hero();
+function loop(t){const dt=Math.min(.05,(t-lastT)/1000||0);lastT=t;off=(off+speed*dt)%16;$('#fl').style.strokeDashoffset=off;requestAnimationFrame(loop)}
+if(!REDUCED)requestAnimationFrame(loop);
+
+/* Messreihe */
+const PART={A:{r:100,c:'var(--nord11)',m:'c'},B:{r:200,c:'var(--accent)',m:'s'},C:{r:400,c:'var(--nord15)',m:'t'}};
+const M={A:[3,6],B:[],C:[]};let showQ=false;
+const X=v=>52+v/12*386,Y=m=>250-m/120*225;
+function mark(k,x,y){const p=PART[k];return p.m==='c'?`<circle cx="${x}" cy="${y}" r="5.5" style="fill:${p.c}"/>`:p.m==='s'?`<rect x="${x-5}" y="${y-5}" width="10" height="10" style="fill:${p.c}"/>`:`<path d="M${x} ${y-6.5}L${x+6.5} ${y+5}L${x-6.5} ${y+5}Z" style="fill:${p.c}"/>`}
+function exper(){let g='';for(let m=0;m<=120;m+=30)g+=`<line class="gl" x1="52" y1="${Y(m)}" x2="438" y2="${Y(m)}"/><text class="tx" x="46" y="${Y(m)+4}" text-anchor="end">${m}</text>`;
+  for(let v=0;v<=12;v+=3)g+=`<line class="gl" x1="${X(v)}" y1="25" x2="${X(v)}" y2="250"/><text class="tx" x="${X(v)}" y="266" text-anchor="middle">${v}</text>`;
+  g+=`<line class="ax" x1="52" y1="250" x2="438" y2="250"/><line class="ax" x1="52" y1="25" x2="52" y2="250"/><text class="tx" x="52" y="16">I in mA</text><text class="tx" x="438" y="284" text-anchor="end">U in V</text>`;
+  for(const k in M){const a=M[k];if(a.length>=3&&showQ){const r=PART[k].r;g+=`<line x1="${X(0)}" y1="${Y(0)}" x2="${X(12)}" y2="${Y(12000/r)}" stroke-width="2" style="stroke:${PART[k].c}"/>`}
+    a.forEach(u=>g+=mark(k,X(u),Y(u/PART[k].r*1000)));
+    if(a.length){const u=Math.max(...a);g+=`<text class="tx" x="${X(u)+9}" y="${Y(u/PART[k].r*1000)+4}">${k}</text>`}}
+  $('#xd').innerHTML=g;
+  const k=$('#xb').value,a=[...M[k]].sort((p,q)=>p-q),r=PART[k].r;
+  $('#xt').innerHTML=`<table><thead><tr><th class="n">U</th><th class="n">I</th>${showQ?'<th class="n">U / I</th>':''}</tr></thead><tbody>${a.length?a.map(u=>`<tr><td class="n">${u} V</td><td class="n">${rnd(u/r*1000,2)} mA</td>${showQ?`<td class="n">${r} Ω</td>`:''}</tr>`).join(''):'<tr><td colspan="3">Noch keine Messung</td></tr>'}</tbody></table>`;
+  $('#xq').disabled=a.length<3;$('#xq').title=a.length<3?'Dafür braucht es mindestens drei Messungen':'';$('#xo').textContent=$('#xu').value+' V'}
+$('#xu').oninput=()=>$('#xo').textContent=$('#xu').value+' V';
+$('#xb').onchange=exper;
+$('#xm').onclick=()=>{const k=$('#xb').value,u=+$('#xu').value;if(!M[k].includes(u))M[k].push(u);exper()};
+$('#xq').onclick=()=>{showQ=!showQ;$('#xq').textContent=showQ?'U / I ausblenden':'U / I anzeigen';exper()};
+$('#xc').onclick=()=>{M[$('#xb').value]=[];exper()};exper();
+
+/* Dreieck */
+const TRI={U:['M100 8 L148 88 L52 88 Z','U = R · I'],R:['M52 88 L100 88 L100 162 L8 162 Z','R = U / I'],I:['M100 88 L148 88 L192 162 L100 162 Z','I = U / R']};
+function tri(q){$('#tc').setAttribute('d',TRI[q][0]);$('#tr').textContent=TRI[q][1];$$('[data-q]').forEach(b=>{b.classList.toggle('pri',b.dataset.q===q);b.setAttribute('aria-pressed',b.dataset.q===q)})}
+$$('[data-q]').forEach(b=>b.onclick=()=>tri(b.dataset.q));tri('I');
+
+/* Schritt für Schritt */
+const EX=[
+ [['Aufgabe','An 12 V hängt ein Widerstand mit 2.4 kΩ. Wie gross ist der Strom?'],['Gegeben: U = 12 V, R = 2.4 kΩ','Schreiben Sie auf, was bekannt ist.'],['Umwandeln: R = 2400 Ω','Die Formel braucht Ohm.'],['Formel: I = U / R','I ist gesucht.'],['Einsetzen: I = 12 V / 2400 Ω','Zahlen mit Einheiten einsetzen.'],['Ausrechnen: I = 0.005 A','In Ampere rechnen.'],['Antwort: I = 5 mA','Kleine Ströme schreibt man in Milliampere.']],
+ [['Aufgabe','An 9 V fliessen 15 mA. Wie gross ist der Widerstand?'],['Gegeben: U = 9 V, I = 15 mA','Schreiben Sie auf, was bekannt ist.'],['Umwandeln: I = 0.015 A','Die Formel braucht Ampere.'],['Formel: R = U / I','R ist gesucht.'],['Einsetzen: R = 9 V / 0.015 A','Zahlen mit Einheiten einsetzen.'],['Antwort: R = 600 Ω','Volt durch Ampere ergibt Ohm.']],
+ [['Aufgabe','Durch 330 Ω fliessen 20 mA. Wie gross ist die Spannung?'],['Gegeben: R = 330 Ω, I = 20 mA','Schreiben Sie auf, was bekannt ist.'],['Umwandeln: I = 0.02 A','Die Formel braucht Ampere.'],['Formel: U = R · I','U ist gesucht.'],['Einsetzen: U = 330 Ω · 0.02 A','Zahlen mit Einheiten einsetzen.'],['Antwort: U = 6.6 V','Ohm mal Ampere ergibt Volt.']]];
+let sx=0,sn=0;function steps(){const e=EX[sx];$('#ss').innerHTML=e.slice(0,sn+1).map(([a,b],i)=>i===0?`<p><b>${b}</b></p>`:`<div class="st ${i===sn?'now':''}"><code>${a}</code><span>${b}</span></div>`).join('');$('#sb').disabled=sn===0;$('#sf').disabled=sn===e.length-1;$('#sc').textContent=`Schritt ${sn+1} von ${e.length}`}
+$('#sf').onclick=()=>{sn++;steps()};$('#sb').onclick=()=>{sn--;steps()};$('#sx').onchange=e=>{sx=+e.target.value;sn=0;steps()};steps();
+
+/* Je-desto */
+let eu=6,er=300;function eff(){const i=eu/er*1000;$('#eeu').textContent=eu+' V';$('#eer').textContent=er+' Ω';$('#eei').textContent=rnd(i,1)+' mA';$('#eeb i').style.width=clamp(i/80*100,0,100)+'%';$('#eeb').setAttribute('aria-label',`Strom ${rnd(i,1)} mA von maximal 80 mA`);
+  const t={u2:[eu*2,er],u5:[eu/2,er],r2:[eu,er*2],r5:[eu,er/2]};$$('[data-e]').forEach(b=>{const n=t[b.dataset.e];if(n){const v=n[0]/n[1]*1000;b.disabled=v>80||v<2.5}})}
+$$('[data-e]').forEach(b=>b.onclick=()=>{const a=b.dataset.e;if(a==='u2')eu*=2;if(a==='u5')eu/=2;if(a==='r2')er*=2;if(a==='r5')er/=2;if(a==='x'){eu=6;er=300}eff()});eff();
+
+/* Python kopieren */
+$('#cp').onclick=()=>{const t=$('#code').textContent;const ok=()=>{$('#cps').textContent='Kopiert.'},no=()=>{const s=getSelection(),g=document.createRange();g.selectNodeContents($('#code'));s.removeAllRanges();s.addRange(g);$('#cps').textContent='Der Code ist markiert. Kopieren Sie ihn mit der Tastatur.'};try{navigator.clipboard.writeText(t).then(ok,no)}catch(e){no()}};
+
+/* Zufallsaufgaben */
+const US=[3,4.5,5,6,9,12],RN=[100,150,200,250,300,450,500,600,900,1000,1500];
+function figLine(r,umark){let g='';const mx=120,Yd=m=>170-m/mx*150,Xd=v=>46+v/12*280;for(let m=0;m<=120;m+=30)g+=`<line class="gl" x1="46" y1="${Yd(m)}" x2="326" y2="${Yd(m)}"/><text class="tx" x="40" y="${Yd(m)+4}" text-anchor="end">${m}</text>`;for(let v=0;v<=12;v+=3)g+=`<line class="gl" x1="${Xd(v)}" y1="20" x2="${Xd(v)}" y2="170"/><text class="tx" x="${Xd(v)}" y="186" text-anchor="middle">${v}</text>`;
+  const um=Math.min(12,r/1000*120);g+=`<line class="ax" x1="46" y1="170" x2="326" y2="170"/><line class="ax" x1="46" y1="20" x2="46" y2="170"/><line x1="${Xd(0)}" y1="${Yd(0)}" x2="${Xd(um)}" y2="${Yd(um/r*1000)}" stroke-width="2.6" style="stroke:var(--accent)"/><circle cx="${Xd(umark)}" cy="${Yd(umark/r*1000)}" r="6" style="fill:var(--nord12)"/><text class="tx" x="46" y="12">I in mA</text><text class="tx" x="326" y="200" text-anchor="end">U in V</text>`;
+  return `<svg class="chart" viewBox="0 0 340 206" role="img" aria-label="Gerade durch den Nullpunkt mit markiertem Punkt bei ${umark} Volt und ${umark/r*1000} Milliampere">${g}</svg>`}
+const G={
+ i(){let u,r,i;do{u=pick(US);r=pick(RN);i=u/r*1000}while(i*2%1);const a=rnd(i/1000,4);return{q:`U = ${u} V, R = ${r} Ω. Wie gross ist I in Ampere?`,a,u:'A',hint:'I = U / R',sol:`${u} V / ${r} Ω = ${a} A`}},
+ u(){const r=pick([10,20,50,100,200]),a=pick([.05,.1,.2,.25,.5]),u=rnd(r*a);return{q:`R = ${r} Ω, I = ${a} A. Wie gross ist U?`,a:u,u:'V',hint:'U = R · I',sol:`${r} Ω · ${a} A = ${u} V`}},
+ r(){let u,a,r;do{u=pick(US);a=pick([.01,.02,.05,.1,.2,.25,.5]);r=rnd(u/a,6)}while(r%1);return{q:`U = ${u} V, I = ${a} A. Wie gross ist R?`,a:r,u:'Ω',hint:'R = U / I',sol:`${u} V / ${a} A = ${r} Ω`}},
+ conv(){const c=pick([()=>{const m=pick([5,20,50,150,250,500,1200]);return{q:`${m} mA sind wie viele Ampere?`,a:m/1000,u:'A',hint:'Durch 1000 teilen.',sol:`${m} / 1000 = ${m/1000} A`}},()=>{const a=pick([.02,.05,.1,.25,1.5]);return{q:`${a} A sind wie viele Milliampere?`,a:rnd(a*1000),u:'mA',hint:'Mit 1000 multiplizieren.',sol:`${a} · 1000 = ${rnd(a*1000)} mA`}},()=>{const k=pick([1,2.2,4.7,10,47]);return{q:`${k} kΩ sind wie viele Ohm?`,a:rnd(k*1000),u:'Ω',hint:'Mit 1000 multiplizieren.',sol:`${k} · 1000 = ${rnd(k*1000)} Ω`}},()=>{const o=pick([470,1500,2200,10000]);return{q:`${o} Ω sind wie viele Kiloohm?`,a:o/1000,u:'kΩ',hint:'Durch 1000 teilen.',sol:`${o} / 1000 = ${o/1000} kΩ`}}]);return c()},
+ ik(){const k=pick([1,2,3,4,5,6,10]),u=pick([3,4.5,6,9,12]),i=rnd(u/k,3);return{q:`U = ${u} V, R = ${k} kΩ. Wie gross ist I in mA?`,a:i,u:'mA',hint:'Volt durch Kiloohm ergibt Milliampere.',sol:`${u} V / ${k} kΩ = ${i} mA`}},
+ um(){const r=pick([100,150,220,330,470,1000]),m=pick([5,10,15,20,30]),u=rnd(r*m/1000);return{q:`R = ${r} Ω, I = ${m} mA. Wie gross ist U?`,a:u,u:'V',hint:`Zuerst ${m} mA = ${m/1000} A. Dann U = R · I.`,sol:`${r} Ω · ${m/1000} A = ${u} V`}},
+ rm(){let u,m,r;do{u=pick(US);m=pick([5,10,15,20,25,30,50]);r=rnd(u/(m/1000),6)}while(r%1);return{q:`U = ${u} V, I = ${m} mA. Wie gross ist R?`,a:r,u:'Ω',hint:`Zuerst ${m} mA = ${m/1000} A. Dann R = U / I.`,sol:`${u} V / ${m/1000} A = ${r} Ω`}},
+ dia(){const r=pick([100,150,200,300,400]),uu=[3,6,9,12].filter(v=>{const m=rnd(v/r*1000,3);return m<=120&&m%30===0}),u=pick(uu);return{q:'Lesen Sie den markierten Punkt ab. Wie gross ist der Widerstand?',fig:figLine(r,u),a:r,u:'Ω',hint:'Lesen Sie U und I ab. Wandeln Sie mA in A um, dann R = U / I.',sol:`${u} V / ${rnd(u/r,4)} A = ${r} Ω`}},
+ tab(){const r=pick([100,200,300,500]),b=pick([3,6]),i=v=>rnd(v/r*1000,2),t=pick([2,3]);return{q:`Für ein Bauteil gilt: Bei ${b} V fliessen ${i(b)} mA. Wie gross ist der Strom bei ${b*t} V?`,a:i(b*t),u:'mA',hint:`Die Spannung ist ${t}-mal so gross.`,sol:`${t} · ${i(b)} mA = ${i(b*t)} mA`}},
+ odd(){const r=pick([100,200,250,500]),us=[2,4,6,8,10],bad=Math.floor(Math.random()*5),rows=us.map((u,i)=>{let v=rnd(u/r*1000,2);if(i===bad)v=rnd(v*pick([.6,1.4,1.5]),1);return[u,v]});return{q:`Alle Zeilen gehören zu einem Widerstand. Eine Messung ist falsch. Welche?`,rows,bad,sol:`U / I ergibt überall ${r} Ω, ausser in der Zeile mit ${us[bad]} V. Dort müssten es ${rnd(us[bad]/r*1000,2)} mA sein.`}},
+};
+const GROUPS=[
+ {t:'Einsetzen',c:'var(--nord14)',d:'Grundeinheiten, die Formel genügt.',ex:[
+  {g:'i',n:'Strom berechnen'},{g:'u',n:'Spannung berechnen'},{g:'r',n:'Widerstand berechnen'},
+  {num:1,q:'An 9 V hängt ein Widerstand mit 450 Ω. Wie gross ist der Strom in Ampere?',a:.02,u:'A',hint:'I = U / R',sol:'9 V / 450 Ω = 0.02 A'},
+  {mc:1,q:'Welche Formel ist falsch?',o:[['I = U · R',1,'Richtig erkannt: Der Strom wird kleiner, wenn R grösser wird, also muss R im Nenner stehen.'],['U = R · I',0,'Diese Formel stimmt.'],['R = U / I',0,'Diese Formel stimmt.'],['I = U / R',0,'Diese Formel stimmt.']]}]},
+ {t:'Einheiten',c:'var(--nord13)',d:'mA und kΩ sicher umwandeln.',ex:[
+  {g:'conv',n:'Umwandeln'},{g:'ik',n:'Volt durch Kiloohm'},{g:'um',n:'Spannung mit mA'},{g:'rm',n:'Widerstand mit mA'},
+  {mc:1,q:'Lea rechnet: I = 9 V / 1 kΩ = 9 A. Was stimmt nicht?',o:[['Das Resultat müsste 9 mA heissen',1,'Volt durch Kiloohm ergibt Milliampere.'],['Die Formel ist falsch',0,'Die Formel stimmt, nur die Einheit nicht.'],['Es müsste 0.9 A heissen',0,'Rechnen Sie nach: 9 / 1000 = 0.009 A.']]},
+  {mc:1,q:'Welcher Strom ist am grössten?',o:[['0.2 A',1,'0.2 A sind 200 mA.'],['150 mA',0,'150 mA sind nur 0.15 A.'],['90 mA',0,'90 mA sind 0.09 A.']]}]},
+ {t:'Verstehen',c:'var(--nord8)',d:'Ohne Taschenrechner, nur mit Überlegen.',ex:[
+  {mc:1,q:'Die Spannung verdreifacht sich, R bleibt gleich. Was macht der Strom?',o:[['Er verdreifacht sich',1,'I ist proportional zu U.'],['Er bleibt gleich',0,'Der Strom hängt direkt von der Spannung ab.'],['Er wird ein Drittel so gross',0,'Das geschieht, wenn R dreimal so gross wird.']]},
+  {mc:1,q:'Der Widerstand wird halbiert, U bleibt gleich. Was macht der Strom?',o:[['Er verdoppelt sich',1,'Halbe Bremse, doppelter Strom.'],['Er halbiert sich',0,'Weniger Widerstand heisst mehr Strom.'],['Er bleibt gleich',0,'I = U / R: R steht im Nenner.']]},
+  {mc:1,q:'U wird verdoppelt und R wird verdoppelt. Was macht der Strom?',o:[['Er bleibt gleich',1,'Beide Änderungen heben sich auf.'],['Er vervierfacht sich',0,'Das wäre bei doppelter Spannung und halbem Widerstand so.'],['Er halbiert sich',0,'Die doppelte Spannung gleicht den doppelten Widerstand aus.']]},
+  {mc:1,q:'Wie sieht das U-I-Diagramm eines Widerstands aus?',o:[['Eine Gerade durch den Nullpunkt',1,'Das nennt man Proportionalität.'],['Eine waagrechte Linie',0,'Dann wäre der Strom unabhängig von der Spannung.'],['Eine Kurve, die sich abflacht',0,'Bei einem ohmschen Bauteil bleibt die Steigung gleich.']]},
+  {mc:1,q:'Zwei Widerstände im U-I-Diagramm: Welche Gerade ist steiler?',o:[['Die des kleineren Widerstands',1,'Bei gleicher Spannung fliesst mehr Strom.'],['Die des grösseren Widerstands',0,'Schauen Sie oben in der Messreihe: Bauteil C mit dem grössten Widerstand ist am flachsten.'],['Beide sind gleich steil',0,'Die Steigung hängt vom Widerstand ab.']]},
+  {mc:1,q:'Für welches Bauteil gilt das ohmsche Gesetz nicht einfach so?',o:[['LED',1,'Ihr Widerstand ist nicht konstant.'],['Widerstand aus dem Bauteilkasten',0,'Genau dafür gilt es.'],['Kupferdraht bei Raumtemperatur',0,'Auch ein Draht verhält sich ohmsch.']]}]},
+ {t:'Diagramm und Tabelle',c:'var(--nord15)',d:'Werte ablesen, Fehler aufspüren.',ex:[
+  {g:'dia',n:'Aus dem Diagramm'},{g:'tab',n:'Ohne Formel weiterrechnen'},{g:'odd',n:'Falsche Messung finden'}]},
+ {t:'Anwendungen',c:'var(--nord12)',d:'Aus dem Alltag und aus Schaltungen.',ex:[
+  {num:1,q:'Ein Wasserkocher hat einen Heizdraht mit 23 Ω und hängt an 230 V. Wie gross ist der Strom?',a:10,u:'A',hint:'I = U / R',sol:'230 V / 23 Ω = 10 A'},
+  {num:1,q:'Eine Autolampe zieht an 12 V einen Strom von 5 A. Wie gross ist ihr Widerstand im Betrieb?',a:2.4,u:'Ω',hint:'R = U / I',sol:'12 V / 5 A = 2.4 Ω'},
+  {num:1,q:'Eine rote LED nimmt 2 V. Der Rest von 9 V liegt am Vorwiderstand. Es sollen 20 mA fliessen. Wie gross muss der Widerstand sein?',a:350,u:'Ω',hint:'Erst 9 V - 2 V, dann durch 0.02 A teilen.',sol:'7 V / 0.02 A = 350 Ω'},
+  {num:1,q:'USB liefert 5 V. Ein Sensor hat 2.5 kΩ. Welcher Strom fliesst in mA?',a:2,u:'mA',hint:'Volt durch Kiloohm ergibt Milliampere.',sol:'5 V / 2.5 kΩ = 2 mA'},
+  {num:1,q:'Durch einen Widerstand mit 4.7 kΩ fliessen 2 mA. Wie gross ist die Spannung?',a:9.4,u:'V',hint:'Kiloohm mal Milliampere ergibt Volt.',sol:'4.7 kΩ · 2 mA = 9.4 V'},
+  {mc:1,q:'Eine Batterie lässt nach, die Spannung sinkt. Was geschieht in einem Kreis mit festem Widerstand?',o:[['Es fliesst weniger Strom',1,'Sinkt U, sinkt auch I.'],['Es fliesst mehr Strom',0,'Weniger Antrieb bedeutet weniger Strom.'],['Der Widerstand wird kleiner',0,'R ist eine Eigenschaft des Bauteils.']]}]},
+ {t:'Python',c:'var(--nord7)',d:'Die Formel als Programm.',ex:[
+  {mc:1,q:'Was gibt das Programm aus Teil 5 aus?',o:[['20.0 mA',1,'9 / 450 ist 0.02, mal 1000 ergibt 20.0.'],['0.02 mA',0,'Die Ausgabe wird vorher mit 1000 multipliziert.'],['4050 mA',0,'Die Funktion dividiert, sie multipliziert nicht.']]},
+  {mc:1,q:'Welcher Aufruf berechnet den Strom für 12 V und 2.2 kΩ korrekt in Ampere?',o:[['strom(12, 2200)',1,'Die Funktion erwartet Ohm.'],['strom(12, 2.2)',0,'So würde der Wert 1000-mal zu gross.'],['strom(2200, 12)',0,'Die Reihenfolge der Parameter ist u, dann r.']]},
+  {mc:1,q:'Welche Zeile gehört in eine Funktion widerstand(u, i)?',o:[['return u / i',1,'R = U / I'],['return u * i',0,'Das Produkt ist die Leistung, nicht der Widerstand.'],['return i / u',0,'Das ergäbe den Kehrwert.']]},
+  {mc:1,q:'Was passiert beim Aufruf strom(9, 0)?',o:[['Python meldet ZeroDivisionError',1,'Durch null kann man nicht teilen. In der Physik wäre das ein Kurzschluss.'],['Das Ergebnis ist 0',0,'Dann würde kein Strom fliessen. Tatsächlich bricht Python ab.'],['Das Ergebnis ist 9',0,'Geteilt durch null ist nicht definiert.']]}]},
+];
+GROUPS.forEach((g,a)=>g.ex.forEach((e,b)=>{e.id=`${a}-${b}`}));
+const ALL=GROUPS.flatMap(g=>g.ex);
+function prog(){const d=ALL.filter(e=>S.done[e.id]).length;$('#pt').textContent=`${d} von ${ALL.length} Aufgaben gelöst`;$('#pb').style.width=d/ALL.length*100+'%'}
+const fb=(h,k,t)=>{h.innerHTML=`<div class="fb ${k}">${t}</div>`};
+const mark2=(e,c)=>{S.done[e.id]=true;save();c.classList.add('done');prog()};
+function askNum(p,host,right){const id='n'+(++uid),fm=el(`<form class="numrow"><input id="${id}" type="text" inputmode="decimal" autocomplete="off" aria-label="Ihre Antwort"><span class="mono">${p.u}</span><button class="btn pri" type="submit">Prüfen</button></form>`),f=el('<div aria-live="polite"></div>'),ex=el('<div class="ctrls"></div>');host.append(fm,f,ex);let miss=0;
+  fm.onsubmit=ev=>{ev.preventDefault();const raw=$('input',fm).value.trim().replace(',','.').replace(/['’\s]/g,''),x=parseFloat(raw);if(raw===''||isNaN(x)){fb(f,'tip','Geben Sie eine Zahl ein.');return}
+    if(Math.abs(x-p.a)<=Math.max(Math.abs(p.a)*.015,1e-9)){fb(f,'ok',`✓ Richtig. <span class="mono">${p.sol}</span>`);ex.innerHTML='';right();return}
+    miss++;const off=[1000,.001].some(m=>Math.abs(x-p.a*m)<=Math.abs(p.a*m)*.03);fb(f,'no','✗ Noch nicht. '+(off?'Ihr Wert ist um den Faktor 1000 daneben. Prüfen Sie die Einheiten.':'Tipp: '+p.hint));
+    if(miss>=2&&!ex.children.length){const b=el('<button type="button" class="btn">Lösung zeigen</button>');b.onclick=()=>fb(f,'tip',`Lösungsweg: <span class="mono">${p.sol}</span>`);ex.append(b)}}}
+function card(e){const c=el(`<article class="ex ${S.done[e.id]?'done':''}"><div class="exh"><b>${e.n||'Aufgabe'}</b><span class="badge">✓ gelöst</span></div></article>`);
+  if(e.mc){c.append(el(`<p>${e.q}</p>`));const box=el('<div class="opts"></div>'),f=el('<div aria-live="polite"></div>');c.append(box,f);shuffle(e.o).forEach(o=>{const b=el(`<button type="button" class="opt"></button>`);b.textContent=o[0];b.onclick=()=>{$$('.opt',box).forEach(x=>x.classList.remove('f'));if(o[1]){b.classList.add('r');fb(f,'ok','✓ Richtig. '+o[2]);mark2(e,c)}else{b.classList.add('f');fb(f,'no','✗ Noch nicht. '+o[2])}};box.append(b)})}
+  else if(e.num){c.append(el(`<p>${e.q}</p>`));askNum(e,c,()=>mark2(e,c))}
+  else{const need=3,cn=()=>S.gen[e.id]||0,pips=el('<div class="pips"></div>'),body=el('<div class="stack"></div>');c.append(pips,body);
+    const up=()=>{pips.innerHTML=[0,1,2].map(i=>`<i class="${cn()>i?'on':''}"></i>`).join('')+`<span>${Math.min(cn(),need)} von ${need} richtig</span>`};
+    const won=()=>{S.gen[e.id]=cn()+1;save();up();if(cn()>=need)mark2(e,c);const old=$('button[type=submit]',body);if(old)old.disabled=true;const b=el('<button type="button" class="btn pri" style="justify-self:start">Nächste Aufgabe</button>');b.onclick=next;body.append(b);b.focus({preventScroll:true})};
+    function next(){body.innerHTML='';const p=G[e.g]();body.append(el(`<p>${p.q}</p>`));if(p.fig)body.append(el(p.fig));
+      if(p.rows){const t=el(`<div class="tabwrap"><table><thead><tr><th class="n">U</th><th class="n">I</th><th></th></tr></thead><tbody>${p.rows.map((r,i)=>`<tr><td class="n">${r[0]} V</td><td class="n">${r[1]} mA</td><td><button type="button" class="rowbtn" data-i="${i}">falsch</button></td></tr>`).join('')}</tbody></table></div>`),f=el('<div aria-live="polite"></div>');body.append(t,f);let over=false;
+        $$('.rowbtn',t).forEach(b=>b.onclick=()=>{if(over)return;if(+b.dataset.i===p.bad){over=true;b.classList.add('r');fb(f,'ok','✓ Richtig. '+p.sol);won()}else{b.classList.add('f');fb(f,'no','✗ Diese Zeile stimmt. Berechnen Sie U / I für jede Zeile und vergleichen Sie.')}})}
+      else askNum(p,body,won)}
+    up();next()}
+  return c}
+GROUPS.forEach((g,i)=>{const w=el(`<div class="exgroup" style="--gc:${g.c}"><div class="ghead"><span class="gno">Stufe ${i+1}</span><h3>${g.t}</h3><span class="hint">${g.d}</span></div><div class="exs"></div></div>`);g.ex.forEach(e=>$('.exs',w).append(card(e)));$('#ex').append(w)});
+function reset(){const r=$('#rs');r.innerHTML='<button type="button" class="linkbtn">Fortschritt löschen</button>';$('button',r).onclick=()=>{r.innerHTML='Wirklich? <button type="button" class="linkbtn" id="ry">Ja</button> · <button type="button" class="linkbtn" id="rn">Nein</button>';$('#ry').onclick=()=>{S.done={};S.gen={};save();$$('.ex').forEach(c=>c.classList.remove('done'));$$('#ex').forEach(x=>x.innerHTML='');GROUPS.forEach((g,i)=>{const w=el(`<div class="exgroup" style="--gc:${g.c}"><div class="ghead"><span class="gno">Stufe ${i+1}</span><h3>${g.t}</h3><span class="hint">${g.d}</span></div><div class="exs"></div></div>`);g.ex.forEach(e=>$('.exs',w).append(card(e)));$('#ex').append(w)});prog();reset()};$('#rn').onclick=reset}}
+prog();reset();
+</script>
+</body>
+</html>
