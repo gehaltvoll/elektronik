@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Elektronik</title>
-<meta name="description" content="Interaktive Lernseiten zur Elektronik: Stromkreis, Spannung, Strom, Widerstand, LED, Schalter und ohmsches Gesetz.">
+<meta name="description" content="Interaktive Lernseiten zur Elektronik: Stromkreis, Spannung, Strom, Widerstand, LED, Schalter, ohmsches Gesetz und der E-Würfel.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:wght@400;600&family=Open+Sans:wght@400;600;700&display=swap">
 <style>
 :root{
   --nord0:#2E3440;--nord1:#3B4252;--nord2:#434C5E;--nord3:#4C566A;--nord4:#D8DEE9;--nord5:#E5E9F0;--nord6:#ECEFF4;
-  --nord8:#88C0D0;--nord10:#5E81AC;--nord12:#D08770;--nord13:#EBCB8B;
+  --nord8:#88C0D0;--nord10:#5E81AC;--nord11:#BF616A;--nord12:#D08770;--nord13:#EBCB8B;
   --bg:var(--nord6);--surface:var(--nord5);--border:var(--nord4);--text:var(--nord0);--muted:var(--nord3);--accent:var(--nord10);--line:var(--nord0);--grid:rgba(76,86,106,.11);--head:var(--nord0);
   --font:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"Google Sans Code",ui-monospace,"Cascadia Code",Consolas,"SF Mono",monospace;
@@ -25,7 +25,7 @@ h1{margin:0;font-size:44px;font-weight:700;line-height:1.15}
 h2{margin:0;font-size:22px;font-weight:600;line-height:1.25}
 p{margin:0}
 header p{max-width:60ch;font-size:18px}
-.pages{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.pages{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
 .page{background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:18px;display:grid;gap:10px;align-content:start;color:inherit;text-decoration:none}
 .page:hover{border-color:var(--accent)}
 a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
@@ -58,6 +58,13 @@ footer{font-size:15px;color:var(--muted);max-width:68ch}
       <p>Die Formel aus einer Messreihe selbst entdecken und in sechs Stufen sicher anwenden.</p>
       <p class="topics">U = R · I, Einheiten, Diagramme, Anwendungen, Python</p>
       <span class="go">Lernseite öffnen</span>
+    </a>
+    <a class="page" href="e-wuerfel.html">
+      <svg viewBox="0 0 64 50" aria-hidden="true"><rect class="w" x="9" y="2" width="46" height="46" rx="7"/><circle cx="21" cy="14" r="4" style="fill:var(--nord11)"/><circle cx="43" cy="14" r="4" style="fill:var(--nord11)"/><circle cx="32" cy="25" r="4" style="fill:var(--nord11)"/><circle cx="21" cy="36" r="4" style="fill:var(--nord11)"/><circle cx="43" cy="36" r="4" style="fill:var(--nord11)"/></svg>
+      <h2>Der E-Würfel</h2>
+      <p>Aufbau und Funktion des elektronischen Würfels aus der MINT-Woche, vom Bauteil bis zum Programm.</p>
+      <p class="topics">Bauteile, Schaltplan, Widerstände, Arduino-Code, Zufall</p>
+      <span class="go">Würfel öffnen</span>
     </a>
   </section>
   <footer>Beginnen Sie ohne Vorwissen mit «Erste Schaltkreise». Ihr Fortschritt bleibt nur in Ihrem Browser gespeichert.</footer>
