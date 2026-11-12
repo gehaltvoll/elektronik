@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<!-- Entscheidungen:
+Einsatztyp: Lernmaterial (Einführung Elektronik), Zielgruppe Schülerinnen und Schüler Untergymnasium (1.–2. Klasse), Gerät gemischt (Desktop, Tablet, Handy)
+Sprache: Deutsch, Schweizer Rechtschreibung, Sie-Form, keine Programmierkenntnisse nötig, keine Hardware nötig (alles simuliert)
+Aufbau: Rahmengeschichte «Station Volta», 7 Levels; pro Level: Vermutung -> Experiment (Simulation) -> Erklärung (Merke) -> Check-Fragen
+Interaktivität: voll (Simulationen, Herausforderungen, Wahrheitstabellen, Quiz)
+Rückmeldung: sofort mit Erklärung, falsche Antworten wiederholbar; alle richtig = Code-Teil
+Freischaltung: Levels nacheinander; Lehrperson-Schalter in der Fusszeile öffnet alle Levels
+Türcode: LEUCHTE (ein Buchstabe pro Level), Eingabe am Schluss
+Datenhaltung: pro Browser (localStorage: Fortschritt, Vermutungen, Designwahl), nur Komfort
+Export: keiner
+Design: Nord-Farbschema, Open Sans (Text), Google Sans Code (Messwerte, Formeln, Labels)
+Varianten (umschaltbar): A «Station» dunkel/technisch, Google Sans Code für Labels; B «Werkstatt» hell/freundlich, runde Formen, Aurora-Farbe je Level
+-->
+<html lang="de-CH" data-variant="a">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission: Licht an · Einführung Elektronik</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Google+Sans+Code:ital,wght@0,400;0,600;1,400&family=Open+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<style>
+:root{
+  --nord0:#2E3440;--nord1:#3B4252;--nord2:#434C5E;--nord3:#4C566A;
+  --nord4:#D8DEE9;--nord5:#E5E9F0;--nord6:#ECEFF4;
+  --nord7:#8FBCBB;--nord8:#88C0D0;--nord9:#81A1C1;--nord10:#5E81AC;
+  --nord11:#BF616A;--nord12:#D08770;--nord13:#EBCB8B;--nord14:#A3BE8C;--nord15:#B48EAD;
+  --font:"Open Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-mono:"Google Sans Code",ui-monospace,"Cascadia Code",Consolas,"SF Mono",monospace;
+  --ok:var(--nord14);--warn:var(--nord13);--bad:var(--nord11);--special:var(--nord15);--info:var(--nord8);
+  --accent-fill:var(--nord8);--on-fill:var(--nord0);
+}
+/* Variante A: Station (dunkel, technisch) */
+html[data-variant="a"]{
+  --bg:var(--nord0);--surface:var(--nord1);--surface-2:var(--nord2);--line:var(--nord3);
+  --text:var(--nord6);--muted:var(--nord4);--accent:var(--nord8);
+  --top-bg:var(--nord1);--top-line:var(--nord2);
+  --radius:5px;--radius-lg:8px;--label-font:var(--font-mono);
+  --wire:var(--nord4);--glass:var(--nord2);--glass-stroke:var(--nord4);--metal:var(--nord3);--metal-line:var(--nord1);
+  --dot:var(--nord8);--sim-bg:var(--nord0);--tip:var(--nord4);
+  --h1:1.7rem;--h2:1.6rem;
+}
+/* Variante B: Werkstatt (hell, freundlich) */
+html[data-variant="b"]{
+  --bg:var(--nord6);--surface:var(--nord5);--surface-2:var(--nord4);--line:var(--nord4);
+  --text:var(--nord0);--muted:var(--nord3);--accent:var(--nord10);
+  --top-bg:var(--nord5);--top-line:var(--nord4);
+  --radius:14px;--radius-lg:22px;--label-font:var(--font);
+  --wire:var(--nord3);--glass:var(--nord6);--glass-stroke:var(--nord3);--metal:var(--nord9);--metal-line:var(--nord6);
+  --dot:var(--nord10);--sim-bg:var(--nord6);--tip:var(--nord3);
+  --h1:2.1rem;--h2:2rem;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--bg);color:var(--text);font:400 17px/1.6 var(--font);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+a{color:var(--accent);text-decoration:underline}
+h1,h2,h3{line-height:1.2;margin:0}
+p{margin:.5em 0}
+.muted{color:var(--muted)}
+code,.mono{font-family:var(--font-mono)}
+
+/* Kopf */
+.top{background:var(--top-bg);border-bottom:1px solid var(--top-line);position:sticky;top:0;z-index:10}
+.top-inner{max-width:1000px;margin:0 auto;padding:10px 16px;display:flex;gap:12px 20px;align-items:center;flex-wrap:wrap}
+.brand{flex:1 1 220px;min-width:0}
+.brand-kicker{font-family:var(--label-font);font-size:.78rem;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.brand h1{font-size:var(--h1);font-weight:700}
+html[data-variant="a"] .brand h1{font-size:1.35rem;letter-spacing:.02em}
+.codebar{display:flex;gap:5px;align-items:center}
+.codebar .lbl{font-family:var(--label-font);font-size:.75rem;color:var(--muted);margin-right:4px}
+.slot{width:1.9rem;height:2.3rem;display:grid;place-items:center;font-family:var(--font-mono);font-weight:600;font-size:1.1rem;border:2px solid var(--line);border-radius:var(--radius);color:var(--muted);background:var(--bg)}
+.slot.got{background:var(--nord13);border-color:var(--nord13);color:var(--nord0);animation:pop .5s ease}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:4px 12px;font-size:.85rem;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent-fill);color:var(--on-fill);font-weight:600}
+
+main{max-width:1000px;margin:0 auto;padding:20px 16px 40px}
+
+/* Buttons */
+.btn{border:2px solid var(--line);background:var(--surface);padding:8px 16px;border-radius:var(--radius);cursor:pointer;font-weight:600}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn.primary{background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-fill)}
+.btn.ghost{background:transparent}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.opt:focus-visible,.mini:focus-visible,.card:focus-visible,.seg button:focus-visible,[role=button]:focus-visible,.tcell:focus-visible{outline:3px solid var(--nord13);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0}
+
+/* Startseite */
+.intro{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px 22px;margin-bottom:22px}
+.intro h2{font-size:var(--h2);font-weight:700;margin-bottom:8px}
+html[data-variant="a"] .intro{border-left:4px solid var(--nord8)}
+.log-label,.story-label,.kicker{font-family:var(--label-font);font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:14px}
+.howto div{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;font-size:.92rem}
+.howto b{display:block;font-family:var(--label-font);font-size:.8rem;color:var(--accent);margin-bottom:2px}
+html[data-variant="b"] .howto b{color:var(--text)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.card{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;min-height:150px;transition:transform .15s,border-color .15s}
+.card:hover:not(:disabled){transform:translateY(-2px);border-color:var(--accent)}
+.card:disabled{cursor:not-allowed;opacity:.55}
+.card .num{font-family:var(--font-mono);font-weight:600;color:var(--accent);font-size:.9rem}
+.card .sys{font-size:.85rem;color:var(--muted)}
+.card .ttl{font-weight:700;font-size:1.08rem;line-height:1.3}
+.card .chip{margin-top:auto}
+html[data-variant="b"] .card{border-top:7px solid var(--lv)}
+html[data-variant="b"] .card .num{width:2.2rem;height:2.2rem;border-radius:50%;display:grid;place-items:center;background:var(--lv);color:var(--nord0);font-family:var(--font);font-weight:700;font-size:1.1rem}
+.chip{display:inline-block;align-self:flex-start;font-size:.8rem;font-weight:600;padding:2px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.chip.ok{background:var(--ok);border-color:var(--ok);color:var(--nord0)}
+.chip.open{background:var(--nord13);border-color:var(--nord13);color:var(--nord0)}
+.final{margin-top:24px;background:var(--surface);border:2px dashed var(--line);border-radius:var(--radius-lg);padding:20px}
+.final.ready{border-style:solid;border-color:var(--nord13)}
+.final h3{font-size:1.25rem;margin-bottom:6px}
+.codein{font-family:var(--font-mono);font-size:1.4rem;letter-spacing:.35em;text-transform:uppercase;width:12ch;padding:6px 10px;border:2px solid var(--line);border-radius:var(--radius);background:var(--bg)}
+
+/* Level */
+.lvl-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.lvl-tag{font-family:var(--label-font);font-size:.85rem;color:var(--muted)}
+.lvl-head{margin-bottom:14px}
+.lvl-head h2{font-size:var(--h2);font-weight:700;margin-top:4px}
+html[data-variant="b"] .lvl-head{border-left:8px solid var(--lv);padding-left:14px}
+.story{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:14px 18px;margin-bottom:18px}
+html[data-variant="a"] .story{border-left:4px solid var(--nord8)}
+html[data-variant="a"] .story p{font-style:italic}
+.step{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:16px;scroll-margin-top:90px}
+.step-head{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.step-num{width:1.8rem;height:1.8rem;display:grid;place-items:center;border-radius:var(--radius);background:var(--accent-fill);color:var(--on-fill);font-family:var(--font-mono);font-weight:600;font-size:.95rem;flex:none}
+html[data-variant="b"] .step-num{border-radius:50%;background:var(--lv)}
+.step-head h3{font-size:1.15rem;font-weight:600}
+html[data-variant="a"] .step-head h3{font-family:var(--font-mono);font-weight:600;font-size:1rem;text-transform:uppercase;letter-spacing:.05em}
+.q{font-weight:600}
+.task{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px}
+.opts{display:grid;gap:8px;margin:8px 0}
+.opt{display:block;width:100%;text-align:left;padding:10px 14px;border:2px solid var(--line);background:var(--bg);border-radius:var(--radius);cursor:pointer;line-height:1.4}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt.chosen{border-color:var(--accent);box-shadow:inset 4px 0 0 var(--accent)}
+.opt.ok{border-color:var(--ok);background:rgba(163,190,140,.22)}
+.opt.ok::before{content:"✓ ";font-weight:700}
+.opt.bad{border-color:var(--bad);background:rgba(191,97,106,.16)}
+.opt.bad::before{content:"✗ ";font-weight:700}
+.opt:disabled{cursor:default}
+.opt:disabled:not(.ok):not(.bad){opacity:.6}
+.fb{margin-top:6px;padding:8px 12px;border-radius:var(--radius);border-left:4px solid transparent}
+.fb:empty{display:none}
+.fb.ok{border-left-color:var(--ok);background:rgba(163,190,140,.16)}
+.fb.bad{border-left-color:var(--bad);background:rgba(191,97,106,.12)}
+.check{margin:14px 0 18px}
+.note{font-size:.95rem}
+.compare{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px}
+.merke{border-left:5px solid var(--special);background:rgba(180,142,173,.14);border-radius:var(--radius);padding:12px 16px}
+.merke-label{font-family:var(--label-font);font-weight:600;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase}
+.merke ul{margin:.4em 0;padding-left:1.2em}
+.formula{font-family:var(--font-mono);background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;display:inline-block;margin:4px 0;font-size:1rem}
+.reward{display:flex;gap:16px;align-items:center;background:rgba(235,203,139,.18);border:2px solid var(--nord13);border-radius:var(--radius-lg);padding:16px;margin-top:10px;animation:pop .5s ease}
+.reward-tile{flex:none;width:4rem;height:4.6rem;display:grid;place-items:center;background:var(--nord13);color:var(--nord0);font-family:var(--font-mono);font-weight:600;font-size:2.4rem;border-radius:var(--radius)}
+.reward p{margin:.2em 0 .6em}
+
+/* Simulationen */
+.sim{background:var(--sim-bg);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-top:10px}
+.sim-svg{width:100%;height:auto;display:block}
+.svgwrap{max-width:560px;margin:0 auto}
+.twin{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:700px){.twin{grid-template-columns:1fr}}
+.fig{margin:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:8px}
+.fig figcaption{font-family:var(--label-font);font-size:.85rem;text-align:center;color:var(--muted);margin-top:4px}
+.wire{stroke:var(--wire);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.wire-end{fill:var(--wire)}
+.pipe{stroke:var(--nord9);stroke-opacity:.45;stroke-width:18;fill:none;stroke-linejoin:round}
+.glass{fill:var(--glass);stroke:var(--glass-stroke);stroke-width:2}
+.filament{stroke:var(--muted);stroke-width:1.6;fill:none;stroke-linejoin:round}
+.filament.hot{stroke:var(--nord13);stroke-width:2}
+.metal{fill:var(--metal)}
+.thread{stroke:var(--metal-line);stroke-width:1.5}
+.tip{fill:var(--tip)}
+.batt{fill:var(--nord10);transition:fill .4s}
+.batt.hot{fill:var(--nord12)}
+.battxt{fill:var(--nord6);font:600 15px var(--font-mono)}
+.svgtxt{fill:var(--text);font:400 12px var(--font-mono)}
+.svgtxt.big{font-size:14px;font-weight:600}
+.dot{fill:var(--dot)}
+.dot.water{fill:var(--nord8)}
+.dot.small{fill:var(--nord15)}
+.meter{fill:var(--surface);stroke:var(--wire);stroke-width:2}
+.pump{fill:var(--surface);stroke:var(--nord9);stroke-width:3}
+.blade{stroke:var(--nord9);stroke-width:4;stroke-linecap:round}
+.resistor{fill:var(--nord12);stroke:var(--wire);stroke-width:2}
+.obj{stroke:var(--wire);stroke-width:2;fill:var(--surface)}
+.obj.empty{stroke-dasharray:4 3;fill:none}
+.led{fill:var(--nord11);opacity:.55;transition:opacity .2s,fill .3s}
+.led.on{opacity:1}
+.led.dead{fill:var(--nord3);opacity:1}
+.crack{stroke:var(--nord0);stroke-width:2;fill:none}
+.smoke circle{fill:var(--nord4);opacity:0}
+.smoke.puff circle{animation:smoke 1.6s ease-out forwards}
+.smoke.puff circle:nth-child(2){animation-delay:.2s}
+.smoke.puff circle:nth-child(3){animation-delay:.4s}
+@keyframes smoke{0%{opacity:.9;transform:translateY(0) scale(.5)}100%{opacity:0;transform:translateY(-50px) scale(2)}}
+.smoke circle{transform-box:fill-box;transform-origin:center}
+.flash{animation:flash .5s ease-out}
+@keyframes flash{0%{opacity:1}100%{opacity:0}}
+.bulb[role=button]{cursor:pointer}
+.bulb.removed .glass{stroke-dasharray:4 3;fill:none}
+.bulb .xmark{fill:var(--bad);font:700 16px var(--font);opacity:0}
+.bulb.removed .xmark{opacity:1}
+.tr{fill:var(--surface);stroke:var(--wire);stroke-width:2}
+.tline{stroke:var(--wire);stroke-width:2.5;fill:none}
+.contact{fill:var(--wire)}
+.tbox{fill:var(--surface-2);stroke:var(--wire);stroke-width:2;transition:fill .2s}
+.tbox.on{fill:var(--nord14)}
+.tbox-t{fill:var(--text);font:600 11px var(--font-mono)}
+.tbox.on + .tbox-t{fill:var(--nord0)}
+.ground{fill:var(--nord3)}
+.house{fill:var(--nord4)}
+.roof{fill:var(--nord12)}
+.win{fill:var(--nord2)}
+.post{stroke:var(--nord3);stroke-width:5}
+html[data-variant="a"] .post{stroke:var(--nord4)}
+
+.cfg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.cfg{background:var(--surface);border:2px solid var(--line);border-radius:var(--radius);padding:8px}
+.cfg.is-ok{border-color:var(--ok)}
+.cfg.is-bad{border-color:var(--bad)}
+.cfg-n{font-family:var(--label-font);font-size:.8rem;color:var(--muted)}
+.mini-row{display:flex;gap:6px;margin-top:4px}
+.mini{flex:1;border:2px solid var(--line);background:var(--bg);border-radius:var(--radius);padding:4px 6px;font-size:.85rem;cursor:pointer}
+.mini.chosen{border-color:var(--accent);background:var(--accent-fill);color:var(--on-fill);font-weight:600}
+.mini:disabled{cursor:default}
+.cfg-res{font-size:.88rem;margin:6px 0 0;line-height:1.45}
+.cfg-res:empty{display:none}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chipbtn{border:2px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:.92rem}
+.chipbtn:hover{border-color:var(--accent)}
+.chipbtn.done{border-style:dashed;color:var(--muted)}
+.chipbtn.active{border-color:var(--nord13);border-style:solid;color:var(--text);font-weight:600}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+@media (max-width:600px){.cols{grid-template-columns:1fr}}
+.col{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;min-height:70px}
+.col h4{margin:0 0 4px;font-size:.88rem}
+.col ul{margin:0;padding-left:1.1em;font-size:.9rem}
+.col.c-gut{border-top:4px solid var(--ok)}
+.col.c-schwach{border-top:4px solid var(--warn)}
+.col.c-nicht{border-top:4px solid var(--bad)}
+.readout{font-family:var(--font-mono);font-size:.95rem;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;margin-top:8px}
+.status{margin-top:8px;padding:8px 12px;border-radius:var(--radius);background:var(--surface);border-left:4px solid var(--info)}
+.status.bad{border-left-color:var(--bad)}
+.status.ok{border-left-color:var(--ok)}
+.status.warn{border-left-color:var(--warn)}
+.ctrl{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;align-items:center;margin-top:12px}
+.ctrl label{font-weight:600;font-size:.95rem}
+.ctrl output{font-family:var(--font-mono);min-width:5.5ch;text-align:right}
+input[type=range]{width:100%;accent-color:var(--nord8)}
+html[data-variant="b"] input[type=range]{accent-color:var(--nord10)}
+.chal{list-style:none;padding:0;margin:10px 0}
+.chal li{padding:6px 10px;border-radius:var(--radius);margin-bottom:4px;border:1px solid var(--line);background:var(--surface)}
+.chal li.cur{border-color:var(--nord13);border-width:2px;font-weight:600}
+.chal li.done{border-color:var(--ok);background:rgba(163,190,140,.16)}
+.chal li.done::before{content:"✓ ";font-weight:700}
+.chal li.wait{opacity:.5}
+.rbtns{display:flex;flex-wrap:wrap;gap:6px}
+.rbtns button{font-family:var(--font-mono);border:2px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:4px 10px;cursor:pointer}
+.rbtns button[aria-pressed="true"]{border-color:var(--accent-fill);background:var(--accent-fill);color:var(--on-fill);font-weight:600}
+.help{background:var(--surface);border:1px dashed var(--line);border-radius:var(--radius);padding:8px 12px;margin-top:10px;font-size:.92rem}
+.ttables{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+@media (max-width:560px){.ttables{grid-template-columns:1fr}}
+table.tt{border-collapse:collapse;width:100%;font-family:var(--font-mono);background:var(--surface)}
+.tt th,.tt td{border:1px solid var(--line);padding:4px 8px;text-align:center}
+.tt caption{font-family:var(--font);font-weight:600;text-align:left;padding-bottom:4px}
+.tcell{width:100%;border:2px solid var(--line);background:var(--bg);border-radius:var(--radius);cursor:pointer;font-family:var(--font-mono);font-weight:600;padding:2px 0}
+.tcell.ok{border-color:var(--ok);background:rgba(163,190,140,.22)}
+.tcell.bad{border-color:var(--bad);background:rgba(191,97,106,.16)}
+.tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.toggles{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.tog{font-family:var(--font-mono);font-weight:600;border:2px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:6px 14px;cursor:pointer}
+.tog[aria-pressed="true"]{background:var(--nord14);border-color:var(--nord14);color:var(--nord0)}
+.slots{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.slotcard{background:var(--surface);border:2px solid var(--line);border-radius:var(--radius);padding:10px}
+.slotcard.ok{border-color:var(--ok)}
+.slotcard.bad{border-color:var(--bad)}
+.slotcard h4{margin:0 0 6px;font-size:.95rem}
+.slotcard .fb{font-size:.88rem}
+.results{width:100%;border-collapse:collapse;margin-top:10px;font-size:.92rem}
+.results td,.results th{border:1px solid var(--line);padding:4px 8px;text-align:left}
+.results th{background:var(--surface)}
+.finale{text-align:center;padding:10px 0}
+.finale h2{font-size:2.4rem;font-weight:700;margin:10px 0}
+.finale ul{text-align:left;max-width:620px;margin:16px auto;padding-left:1.2em}
+.finale-svg{max-width:220px;margin:0 auto}
+
+footer{max-width:1000px;margin:0 auto;padding:10px 16px 30px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:.85rem;border-top:1px solid var(--line)}
+footer .btn{font-size:.82rem;padding:4px 10px;font-weight:400}
+footer .sp{flex:1}
+.confirm{display:inline-flex;gap:6px;align-items:center}
+@media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition:none!important}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="g-glow"><stop offset="0" stop-color="#EBCB8B" stop-opacity=".95"/><stop offset=".4" stop-color="#EBCB8B" stop-opacity=".5"/><stop offset="1" stop-color="#EBCB8B" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g-glow-red"><stop offset="0" stop-color="#BF616A" stop-opacity=".95"/><stop offset=".4" stop-color="#BF616A" stop-opacity=".45"/><stop offset="1" stop-color="#BF616A" stop-opacity="0"/></radialGradient>
+  </defs>
+</svg>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="brand">
+      <div class="brand-kicker">Station Volta · Stromausfall</div>
+      <h1>Mission: Licht an</h1>
+    </div>
+    <div class="codebar" id="codebar" aria-label="Türcode"></div>
+    <div class="seg" role="group" aria-label="Design wählen">
+      <button type="button" data-v="a">A · Station</button>
+      <button type="button" data-v="b">B · Werkstatt</button>
+    </div>
+  </div>
+</header>
+
+<main id="view"></main>
+
+<footer>
+  <a href="index.html">← Alle Lernseiten</a>
+  <span>Einführung in die Elektronik · alles im Browser, keine Hardware nötig</span>
+  <span class="sp"></span>
+  <button type="button" class="btn ghost" id="teacherBtn"></button>
+  <span id="resetWrap"><button type="button" class="btn ghost" id="resetBtn">Fortschritt zurücksetzen</button></span>
+</footer>
+
+<script>
+"use strict";
+/* ---------- Grundfunktionen ---------- */
+const NS = "http://www.w3.org/2000/svg";
+const KEY = "mission-licht-an-v1";
+const CODE = "LEUCHTE";
+let state = {variant:"a", solved:{}, pred:{}, exp:{}, teacher:false, final:false};
+try { const raw = localStorage.getItem(KEY); if (raw) state = Object.assign(state, JSON.parse(raw)); } catch(e) {}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e) {} }
+
+function h(tag, attrs, ...kids){
+  const e = document.createElement(tag);
+  for (const k in (attrs||{})){
+    const v = attrs[k];
+    if (v === null || v === undefined || v === false) continue;
+    if (k === "class") e.className = v;
+    else if (k === "html") e.innerHTML = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? "" : v);
+  }
+  kids.flat().forEach(c => { if (c === null || c === undefined || c === false) return; e.appendChild(typeof c === "string" || typeof c === "number" ? document.createTextNode(String(c)) : c); });
+  return e;
+}
+function s(tag, attrs, parent){
+  const e = document.createElementNS(NS, tag);
+  for (const k in (attrs||{})) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function txt(svg, x, y, t, cls, anchor){ const e = s("text", {x, y, class: cls || "svgtxt", "text-anchor": anchor || "middle"}, svg); e.textContent = t; return e; }
+function svgIn(parent, vb, label){ const svg = s("svg", {viewBox: vb, class: "sim-svg", role: "img", "aria-label": label}); parent.appendChild(svg); return svg; }
+function fmt(x){ return String(parseFloat(x.toFixed(2))); }
+function clamp(x,a,b){ return Math.max(a, Math.min(b, x)); }
+
+/* ---------- Animation: fliessende Elektronen, drehende Teile ---------- */
+let flows = [], spinners = [], lastT = 0;
+function addFlow(svg, d, n, r, cls){
+  const p = s("path", {d, fill: "none", stroke: "none"}, svg);
+  const len = p.getTotalLength();
+  const dots = [];
+  for (let i = 0; i < n; i++) dots.push(s("circle", {r: r || 3, class: cls || "dot"}, svg));
+  const f = {svg, p, len, dots, speed: 0, off: 0};
+  f.set = v => { f.speed = v; placeFlow(f); };
+  flows.push(f); placeFlow(f);
+  return f;
+}
+function placeFlow(f){
+  f.dots.forEach((d, i) => {
+    let L = (f.off + i * f.len / f.dots.length) % f.len; if (L < 0) L += f.len;
+    const pt = f.p.getPointAtLength(L);
+    d.setAttribute("cx", pt.x.toFixed(1)); d.setAttribute("cy", pt.y.toFixed(1));
+    d.style.opacity = f.speed > 0.01 ? 1 : 0;
+  });
+}
+function removeFlows(svg){ flows = flows.filter(f => f.svg !== svg); spinners = spinners.filter(sp => sp.svg !== svg); }
+function addSpinner(svg, g, cx, cy){ const sp = {svg, g, cx, cy, speed: 0, ang: 0}; spinners.push(sp); return sp; }
+function resetAnim(){ flows = []; spinners = []; }
+function tick(t){
+  const dt = Math.min(60, t - lastT) / 1000; lastT = t;
+  for (const f of flows) if (f.speed > 0.01){ f.off += f.speed * dt; placeFlow(f); }
+  for (const sp of spinners) if (sp.speed > 0){ sp.ang = (sp.ang + sp.speed * dt) % 360; sp.g.setAttribute("transform", `rotate(${sp.ang.toFixed(1)} ${sp.cx} ${sp.cy})`); }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* Glühlämpchen (Schema) */
+function bulb(svg, cx, cy, r, glowId){
+  const g = s("g", {class: "bulb"}, svg);
+  const glow = s("circle", {cx, cy, r: r * 2.4, fill: `url(#${glowId || "g-glow"})`, opacity: 0}, g);
+  s("circle", {cx, cy, r, class: "glass"}, g);
+  const fil = s("path", {d: `M${cx-r*.5} ${cy+r*.55} L${cx-r*.3} ${cy-r*.25} L${cx-r*.1} ${cy+r*.15} L${cx+r*.1} ${cy-r*.25} L${cx+r*.3} ${cy+r*.15} L${cx+r*.5} ${cy+r*.55}`, class: "filament"}, g);
+  const x = s("text", {x: cx, y: cy + 6, class: "xmark", "text-anchor": "middle"}, g); x.textContent = "✕";
+  return {g, set(b){ b = clamp(b, 0, 1); glow.setAttribute("opacity", b); fil.classList.toggle("hot", b > 0.08); }};
+}
+function battery(svg, x, y, w, hgt, label){
+  const r = s("rect", {x, y, width: w, height: hgt, rx: 5, class: "batt"}, svg);
+  s("rect", {x: x + w/2 - 7, y: y - 7, width: 14, height: 7, rx: 2, class: "metal"}, svg);
+  txt(svg, x + w/2, y + 17, "+", "battxt");
+  if (label) txt(svg, x + w/2, y + hgt/2 + 6, label, "battxt").style.fontSize = "11px";
+  txt(svg, x + w/2, y + hgt - 6, "−", "battxt");
+  return r;
+}
+
+/* ---------- Level 1 ---------- */
+function buildL1(c, done){
+  const CF = [
+    {w:["M40 32 V14 H120 V90 H152","M40 130 V148 H165 V113"], lit:true,
+     why:"Der Strom fliesst von einem Pol durch das Gewinde, den Glühdraht und den Fusskontakt zum anderen Pol."},
+    {w:["M40 32 V14 H205 V130 H169 V113","M40 130 V148 H161 V113"], lit:false,
+     why:"Beide Drähte berühren nur den Fusskontakt. Der Strom muss gar nicht durch den Glühdraht."},
+    {w:["M40 32 V14 H120 V90 H152","M40 130 V148 H105"], end:[105,148], lit:false,
+     why:"Ein Draht hängt lose. Der Kreis ist offen, also fliesst kein Strom."},
+    {w:["M40 32 V14 H205 V130 H165 V113","M40 130 V148 H120 V90 H152"], lit:true,
+     why:"Es spielt keine Rolle, welcher Pol mit welchem Kontakt verbunden ist."},
+    {w:["M40 32 V14 H205 V90 H178","M40 130 V148 H165 V113"], lit:true,
+     why:"Das Gewinde ist rundherum ein Kontakt. Die Seite spielt keine Rolle."},
+    {w:["M40 32 V14 H120 V90 H152","M40 130 V148 H165 V113","M40 32 V24 H8 V140 H40 V130"], lit:false, short:true,
+     why:"Der Draht direkt von Plus nach Minus ist ein Kurzschluss. Fast der ganze Strom nimmt diesen bequemen Weg, die Batterie wird heiss."}
+  ];
+  const guesses = CF.map(() => null);
+  let tested = false;
+  const grid = h("div", {class: "cfg-grid"});
+  c.append(grid);
+  const testBtn = h("button", {class: "btn primary", disabled: true}, "Alle sechs testen");
+  const summary = h("p", {class: "note", "aria-live": "polite"});
+  c.append(h("div", {class: "row"}, testBtn, h("span", {class: "muted note"}, "Zuerst bei allen sechs eine Vermutung wählen.")), summary);
+  const cards = CF.map((cf, i) => {
+    const card = h("div", {class: "cfg"}, h("div", {class: "cfg-n"}, `Anordnung ${i+1}`));
+    grid.append(card);
+    const svg = svgIn(card, "0 0 220 160", `Anordnung ${i+1}`);
+    const batt = s("rect", {x:20, y:40, width:40, height:90, rx:6, class:"batt"}, svg);
+    s("rect", {x:32, y:32, width:16, height:8, rx:2, class:"metal"}, svg);
+    txt(svg, 40, 62, "+", "battxt"); txt(svg, 40, 124, "−", "battxt");
+    const glow = s("circle", {cx:165, cy:52, r:58, fill:"url(#g-glow)", opacity:0}, svg);
+    cf.w.forEach(d => s("path", {d, class:"wire"}, svg));
+    if (cf.end) s("circle", {cx:cf.end[0], cy:cf.end[1], r:4, class:"wire-end"}, svg);
+    s("circle", {cx:165, cy:52, r:27, class:"glass"}, svg);
+    const fil = s("path", {d:"M158 79 L157 50 L161 58 L165 46 L169 58 L173 50 L172 79", class:"filament"}, svg);
+    s("rect", {x:152, y:78, width:26, height:26, rx:3, class:"metal"}, svg);
+    [85, 91, 97].forEach(y => s("line", {x1:152, x2:178, y1:y, y2:y, class:"thread"}, svg));
+    s("circle", {cx:165, cy:108, r:5, class:"tip"}, svg);
+    const yes = h("button", {class:"mini", type:"button"}, "leuchtet");
+    const no = h("button", {class:"mini", type:"button"}, "leuchtet nicht");
+    const res = h("p", {class:"cfg-res"});
+    const pick = v => { if (tested) return; guesses[i] = v; yes.classList.toggle("chosen", v); no.classList.toggle("chosen", !v); yes.setAttribute("aria-pressed", v); no.setAttribute("aria-pressed", !v); if (guesses.every(g => g !== null)) testBtn.disabled = false; };
+    yes.onclick = () => pick(true); no.onclick = () => pick(false);
+    card.append(h("div", {class:"mini-row"}, yes, no), res);
+    return {cf, glow, fil, batt, res, card, yes, no};
+  });
+  testBtn.onclick = () => {
+    tested = true; testBtn.disabled = true; let ok = 0;
+    cards.forEach((k, i) => {
+      k.glow.setAttribute("opacity", k.cf.lit ? 1 : 0);
+      k.fil.classList.toggle("hot", k.cf.lit);
+      if (k.cf.short) k.batt.classList.add("hot");
+      k.yes.disabled = k.no.disabled = true;
+      const right = guesses[i] === k.cf.lit; if (right) ok++;
+      k.card.classList.add(right ? "is-ok" : "is-bad");
+      k.res.innerHTML = `<strong>${k.cf.lit ? "Leuchtet." : "Leuchtet nicht."} ${right ? "✓ Vermutung stimmt." : "✗ Vermutung falsch."}</strong> ${k.cf.why}`;
+    });
+    summary.textContent = `${ok} von 6 Vermutungen waren richtig. ` + (ok < 6 ? "Lesen Sie bei den rot markierten nach, warum." : "Ausgezeichnet!");
+    done();
+  };
+}
+
+/* ---------- Level 2 ---------- */
+function buildL2(c, done){
+  const OB = [
+    ["Büroklammer", 1, "Eisen ist ein Metall."], ["Münze", 1, "Münzen bestehen aus Metall."],
+    ["Alufolie", 1, "Aluminium ist ein Metall."], ["Schlüssel", 1, "Messing ist ein Metall."],
+    ["Bleistiftmine", .45, "Grafit ist kein Metall und leitet trotzdem."],
+    ["Salzwasser", .3, "Im Wasser gelöstes Salz bildet elektrisch geladene Teilchen, die sich bewegen können."],
+    ["Leitungswasser", .04, "Leitet nur ganz wenig: Das Lämpchen bleibt dunkel, das Messgerät zeigt aber etwas an."],
+    ["Radiergummi", 0, "Gummi ist ein Isolator."], ["Holzstab", 0, "Trockenes Holz isoliert."],
+    ["Glasstab", 0, "Glas ist ein sehr guter Isolator."], ["Plastiklineal", 0, "Kunststoff isoliert."],
+    ["Papier", 0, "Trockenes Papier isoliert."]
+  ];
+  const tested = new Set();
+  const wrap = h("div", {class:"svgwrap"}); c.append(wrap);
+  const svg = svgIn(wrap, "0 0 320 200", "Durchgangsprüfer");
+  const loop = "M38 62 V30 H260 V172 H38 V150";
+  ["M38 62 V30 H143","M177 30 H260 V77","M260 113 V172 H204","M136 172 H38 V150"].forEach(d => s("path", {d, class:"wire"}, svg));
+  const flow = addFlow(svg, loop, 18, 3);
+  battery(svg, 20, 70, 36, 80, "4.5 V");
+  const lamp = bulb(svg, 160, 30, 16);
+  s("circle", {cx:260, cy:95, r:18, class:"meter"}, svg);
+  txt(svg, 260, 100, "A", "svgtxt big");
+  s("rect", {x:126, y:166, width:12, height:12, rx:2, class:"metal"}, svg);
+  s("rect", {x:202, y:166, width:12, height:12, rx:2, class:"metal"}, svg);
+  const objR = s("rect", {x:138, y:160, width:64, height:24, rx:5, class:"obj empty"}, svg);
+  const objT = txt(svg, 170, 176, "leer", "svgtxt");
+  objT.style.fontSize = "10px";
+  txt(svg, 170, 152, "Prüfstelle", "svgtxt").style.fontSize = "10px";
+  const readout = h("div", {class:"readout", "aria-live":"polite"}, "Messgerät: 0 mA");
+  const status = h("div", {class:"status"}, "Wählen Sie einen Gegenstand und legen Sie ihn in die Prüfstelle.");
+  const prog = h("p", {class:"note muted"}, "0 von 12 getestet");
+  const chips = h("div", {class:"chips"});
+  const lists = {gut: h("ul"), schwach: h("ul"), nicht: h("ul")};
+  const cols = h("div", {class:"cols"},
+    h("div", {class:"col c-gut"}, h("h4", {}, "✓ leitet gut"), lists.gut),
+    h("div", {class:"col c-schwach"}, h("h4", {}, "~ leitet schwach"), lists.schwach),
+    h("div", {class:"col c-nicht"}, h("h4", {}, "✗ leitet nicht (Isolator)"), lists.nicht));
+  c.append(chips, readout, status, prog, cols);
+  let active = null;
+  OB.forEach((o, i) => {
+    const b = h("button", {class:"chipbtn", type:"button"}, o[0]);
+    b.onclick = () => {
+      if (active) active.classList.remove("active");
+      active = b; b.classList.add("active", "done");
+      objR.setAttribute("class", "obj"); objT.textContent = o[0];
+      lamp.set(o[1]); flow.set(o[1] * 90 + (o[1] > 0 ? 6 : 0));
+      const mA = Math.round(o[1] * 250);
+      readout.textContent = `Messgerät: ${mA} mA`;
+      const cat = o[1] >= .8 ? "gut" : o[1] > 0 ? "schwach" : "nicht";
+      const catT = {gut:"leitet gut", schwach:"leitet schwach", nicht:"leitet nicht"}[cat];
+      status.className = "status " + (cat === "gut" ? "ok" : cat === "schwach" ? "warn" : "bad");
+      status.innerHTML = `<strong>${o[0]}: ${catT}.</strong> ${o[2]}`;
+      if (!tested.has(i)){ tested.add(i); lists[cat].append(h("li", {}, o[0])); }
+      prog.textContent = `${tested.size} von 12 getestet` + (tested.size === 12 ? ": alle geprüft!" : "");
+      if (tested.size === 12) done();
+    };
+    chips.append(b);
+  });
+}
+
+/* ---------- Level 3 ---------- */
+function buildL3(c, done){
+  let U = 3, R = 2;
+  const grid = h("div", {class:"twin"}); c.append(grid);
+  const wBox = h("figure", {class:"fig"}), eBox = h("figure", {class:"fig"});
+  grid.append(wBox, eBox);
+  const loop = "M40 40 H260 V170 H40 Z";
+  const ws = svgIn(wBox, "0 0 300 210", "Wasserkreislauf");
+  wBox.append(h("figcaption", {}, "Wasserkreislauf"));
+  s("path", {d:loop, class:"pipe"}, ws);
+  const wf = addFlow(ws, loop, 22, 3.5, "dot water");
+  const k1 = s("rect", {x:251, y:82, width:2, height:46, rx:1, class:"metal"}, ws);
+  const k2 = s("rect", {x:267, y:82, width:2, height:46, rx:1, class:"metal"}, ws);
+  s("circle", {cx:40, cy:105, r:24, class:"pump"}, ws);
+  const imp = s("g", {}, ws);
+  [0, 90].forEach(a => s("line", {x1:40, y1:87, x2:40, y2:123, class:"blade", transform:`rotate(${a} 40 105)`}, imp));
+  const spin = addSpinner(ws, imp, 40, 105);
+  txt(ws, 72, 109, "Pumpe", "svgtxt", "start");
+  txt(ws, 236, 109, "Engstelle", "svgtxt", "end");
+  txt(ws, 150, 200, "Wasserteilchen fliessen im Kreis", "svgtxt").style.fontSize = "10px";
+
+  const es = svgIn(eBox, "0 0 300 210", "Stromkreis");
+  eBox.append(h("figcaption", {}, "Stromkreis"));
+  s("path", {d:loop, class:"wire"}, es);
+  const ef = addFlow(es, loop, 22, 3, "dot");
+  s("rect", {x:22, y:72, width:36, height:66, rx:5, class:"batt"}, es);
+  const uT = txt(es, 40, 110, "", "battxt"); uT.style.fontSize = "11px";
+  txt(es, 72, 109, "Spannung", "svgtxt", "start");
+  s("rect", {x:249, y:78, width:22, height:54, rx:3, class:"resistor"}, es);
+  const rT = txt(es, 240, 109, "", "svgtxt big", "end");
+  s("circle", {cx:150, cy:170, r:16, class:"meter"}, es);
+  txt(es, 150, 175, "A", "svgtxt big");
+  const iT = txt(es, 150, 200, "", "svgtxt big");
+
+  const ctrl = h("div", {class:"ctrl"});
+  const uIn = h("input", {type:"range", min:0, max:12, step:1, value:U, id:"uIn"});
+  const rIn = h("input", {type:"range", min:1, max:12, step:1, value:R, id:"rIn"});
+  const uOut = h("output", {for:"uIn"}), rOut = h("output", {for:"rIn"});
+  ctrl.append(h("label", {for:"uIn"}, "Spannung U (Pumpe)"), uIn, uOut, h("label", {for:"rIn"}, "Widerstand R (Engstelle)"), rIn, rOut);
+  const formula = h("div", {class:"formula", "aria-live":"polite"});
+  const CH = [
+    {t:"Stellen Sie einen Strom von genau 2 A ein.", ok:() => Math.abs(U / R - 2) < 1e-9},
+    {t:"Stellen Sie bei einem Widerstand von 4 Ω einen Strom von 3 A ein.", ok:() => R === 4 && U === 12},
+    {t:"Halbieren Sie jetzt den Strom auf 1.5 A, ohne die Spannung von 12 V zu verändern.", ok:() => U === 12 && R === 8}
+  ];
+  let ci = 0;
+  const list = h("ol", {class:"chal"});
+  const lis = CH.map(x => { const li = h("li", {}, x.t); list.append(li); return li; });
+  c.append(ctrl, h("div", {}, formula), h("p", {class:"q", style:"margin-top:14px"}, "Herausforderungen"), list);
+  function paint(){ lis.forEach((li, i) => li.className = i < ci ? "done" : i === ci ? "cur" : "wait"); }
+  function update(){
+    U = +uIn.value; R = +rIn.value; const I = U / R;
+    uOut.textContent = U + " V"; rOut.textContent = R + " Ω";
+    const sp = I * 16; wf.set(sp); ef.set(sp); spin.speed = U * 35;
+    const w = R * 0.6; k1.setAttribute("width", w); k2.setAttribute("x", 269 - w); k2.setAttribute("width", w);
+    uT.textContent = U + " V"; rT.textContent = R + " Ω"; iT.textContent = "I = " + fmt(I) + " A";
+    formula.textContent = `I = U / R = ${U} V / ${R} Ω = ${fmt(I)} A`;
+    while (ci < CH.length && CH[ci].ok()){ ci++; }
+    paint();
+    if (ci === CH.length){ done(); }
+  }
+  uIn.oninput = update; rIn.oninput = update;
+  update();
+}
+
+/* ---------- Level 4 ---------- */
+function buildL4(c, done){
+  const VALS = [0, 100, 220, 330, 390, 470, 1000, 10000];
+  let R = null, on = false, alive = true, burned = 0, achieved = false;
+  const wrap = h("div", {class:"svgwrap"}); c.append(wrap);
+  const svg = svgIn(wrap, "0 0 320 180", "LED-Schaltung mit Vorwiderstand");
+  const loop = "M40 46 V25 H280 V160 H40 V140";
+  const wireTop = s("path", {d:"M40 46 V25 H150", class:"wire"}, svg);
+  const wireMid = s("path", {d:"M150 25 H210", class:"wire"}, svg);
+  s("path", {d:"M210 25 H280 V160 H40 V140", class:"wire"}, svg);
+  const flow = addFlow(svg, loop, 18, 3);
+  s("rect", {x:22, y:46, width:36, height:94, rx:5, class:"batt"}, svg);
+  s("rect", {x:33, y:39, width:14, height:7, rx:2, class:"metal"}, svg);
+  txt(svg, 40, 64, "+", "battxt"); txt(svg, 40, 100, "9 V", "battxt"); txt(svg, 40, 134, "−", "battxt");
+  const res = s("rect", {x:150, y:15, width:60, height:20, rx:3, class:"resistor"}, svg);
+  const rLbl = txt(svg, 180, 55, "Vorwiderstand: ?", "svgtxt");
+  const glow = s("circle", {cx:280, cy:88, r:46, fill:"url(#g-glow-red)", opacity:0}, svg);
+  const led = s("path", {d:"M268 108 V84 a12 12 0 0 1 24 0 V108 Z", class:"led"}, svg);
+  s("rect", {x:264, y:106, width:32, height:5, rx:1, class:"metal"}, svg);
+  const crack = s("path", {d:"M276 76 L283 86 L276 93 L284 102", class:"crack"}, svg); crack.style.display = "none";
+  txt(svg, 302, 92, "LED", "svgtxt", "start");
+  const smoke = s("g", {class:"smoke"}, svg);
+  [[278,70],[285,64],[274,60]].forEach(([x,y]) => s("circle", {cx:x, cy:y, r:7}, smoke));
+
+  const rb = h("div", {class:"rbtns", role:"group", "aria-label":"Vorwiderstand"});
+  const btns = VALS.map(v => { const b = h("button", {type:"button", "aria-pressed":"false"}, v === 0 ? "kein (Draht)" : v >= 1000 ? (v/1000) + " kΩ" : v + " Ω"); b.onclick = () => { R = v; btns.forEach(x => x.setAttribute("aria-pressed", x === b)); onBtn.disabled = !alive; update(); }; rb.append(b); return b; });
+  const onBtn = h("button", {class:"btn primary", type:"button", disabled:true}, "Einschalten");
+  const newBtn = h("button", {class:"btn", type:"button", hidden:true}, "Neue LED einsetzen");
+  const counter = h("span", {class:"muted note"}, "Durchgebrannte LEDs: 0");
+  const readout = h("div", {class:"readout"}, "Erwarteter Strom: wählen Sie zuerst einen Vorwiderstand.");
+  const status = h("div", {class:"status", "aria-live":"polite"}, "Die LED ist eingesetzt, der Schalter ist aus.");
+  const help = h("div", {class:"help", html:
+    "<strong>Rechenhilfe</strong><br>Die LED braucht selbst etwa <span class='mono'>2 V</span> und verträgt höchstens <span class='mono'>20 mA</span>.<br>Für den Widerstand bleiben <span class='mono'>9 V − 2 V = 7 V</span>.<br>Strom: <span class='mono'>I = 7 V / R</span>"});
+  c.append(h("p", {class:"q"}, "Vorwiderstand wählen:"), rb, h("div", {class:"row"}, onBtn, newBtn, counter), readout, status, help);
+
+  const cur = () => R === 0 ? Infinity : 7 / R * 1000; // mA
+  function showR(){
+    if (R === null){ rLbl.textContent = "Vorwiderstand: ?"; return; }
+    res.style.display = R === 0 ? "none" : "";
+    rLbl.textContent = R === 0 ? "kein Widerstand (Draht)" : (R >= 1000 ? (R/1000) + " kΩ" : R + " Ω");
+    const I = cur();
+    readout.textContent = R === 0 ? "Erwarteter Strom: sehr gross (nur der Draht bremst)" : `Erwarteter Strom: I = 7 V / ${R} Ω = ${fmt(I)} mA`;
+  }
+  function update(){
+    showR();
+    onBtn.textContent = on ? "Ausschalten" : "Einschalten";
+    if (!alive) return;
+    if (!on || R === null){ glow.setAttribute("opacity", 0); led.classList.remove("on"); flow.set(0); if (R !== null && !on) { status.className = "status"; status.textContent = "Schalter aus. Schalten Sie ein, um zu testen."; } return; }
+    const I = cur();
+    if (I > 20){ burn(I); return; }
+    glow.setAttribute("opacity", clamp(I / 18, 0.05, 1)); led.classList.add("on"); flow.set(8 + I * 5);
+    if (I >= 14){ status.className = "status ok"; status.innerHTML = `<strong>Perfekt!</strong> ${fmt(I)} mA: Die LED leuchtet hell und bleibt unter 20 mA.`; if (!achieved){ achieved = true; done(); } }
+    else if (I >= 5){ status.className = "status warn"; status.innerHTML = `<strong>Sicher, aber eher schwach.</strong> ${fmt(I)} mA. Geht es heller, ohne über 20 mA zu kommen?`; }
+    else { status.className = "status warn"; status.innerHTML = `<strong>Kaum zu sehen.</strong> Nur ${fmt(I)} mA. Der Widerstand bremst zu stark.`; }
+  }
+  function burn(I){
+    alive = false; on = false; burned++;
+    counter.textContent = "Durchgebrannte LEDs: " + burned;
+    glow.setAttribute("opacity", 1); glow.classList.remove("flash"); void glow.getBBox(); glow.classList.add("flash");
+    setTimeout(() => glow.setAttribute("opacity", 0), 450);
+    led.classList.remove("on"); led.classList.add("dead"); crack.style.display = "";
+    smoke.classList.remove("puff"); void smoke.getBBox(); smoke.classList.add("puff");
+    flow.set(0);
+    status.className = "status bad";
+    status.innerHTML = `<strong>Peng! Die LED ist durchgebrannt.</strong> Strom: ${I === Infinity ? "sehr gross" : fmt(I) + " mA"}. Das ist mehr als die erlaubten 20 mA.`;
+    onBtn.disabled = true; onBtn.textContent = "Einschalten"; newBtn.hidden = false;
+  }
+  onBtn.onclick = () => { on = !on; update(); };
+  newBtn.onclick = () => { alive = true; on = false; led.classList.remove("dead"); crack.style.display = "none"; smoke.classList.remove("puff"); newBtn.hidden = true; onBtn.disabled = R === null; status.className = "status"; status.textContent = "Neue LED eingesetzt. Schalter aus."; update(); };
+}
+
+/* ---------- Level 5 ---------- */
+function buildL5(c, done){
+  const tried = {s:false, p:false};
+  const grid = h("div", {class:"twin"}); c.append(grid);
+  const sBox = h("figure", {class:"fig"}), pBox = h("figure", {class:"fig"});
+  grid.append(sBox, pBox);
+  // Reihenschaltung
+  const ss = svgIn(sBox, "0 0 300 170", "Kette 1");
+  const sLoop = "M30 56 V25 H270 V145 H30 V124";
+  s("path", {d:sLoop, class:"wire"}, ss);
+  const sF = addFlow(ss, sLoop, 18, 3);
+  battery(ss, 15, 56, 30, 68, "");
+  const sRem = [false, false, false];
+  const sB = [95, 160, 225].map((x, i) => mkBulb(ss, x, 25, () => { sRem[i] = !sRem[i]; if (sRem[i]) tried.s = true; upd(); }, `Kette 1, Lämpchen ${i+1}`));
+  const sCap = h("figcaption", {"aria-live":"polite"});
+  sBox.append(sCap);
+  // Parallelschaltung
+  const ps = svgIn(pBox, "0 0 300 170", "Kette 2");
+  const top = "M30 56 V25 H250", bot = "M250 145 H30 V124";
+  [top, bot].forEach(d => s("path", {d, class:"wire"}, ps));
+  const xs = [110, 180, 250];
+  xs.forEach(x => s("path", {d:`M${x} 25 V145`, class:"wire"}, ps));
+  const pTopF = addFlow(ps, top, 9, 3), pBotF = addFlow(ps, bot, 9, 3);
+  const pBrF = xs.map(x => addFlow(ps, `M${x} 25 V145`, 5, 3));
+  battery(ps, 15, 56, 30, 68, "");
+  const pRem = [false, false, false];
+  const pB = xs.map((x, i) => mkBulb(ps, x, 85, () => { pRem[i] = !pRem[i]; if (pRem[i]) tried.p = true; upd(); }, `Kette 2, Lämpchen ${i+1}`));
+  const pCap = h("figcaption", {"aria-live":"polite"});
+  pBox.append(pCap);
+  const status = h("div", {class:"status"}, "Klicken Sie auf ein Lämpchen, um es herauszudrehen (nochmals klicken: wieder eindrehen). Probieren Sie es bei beiden Ketten.");
+  c.append(status);
+
+  function mkBulb(svg, x, y, onClick, label){
+    const b = bulb(svg, x, y, 14);
+    b.g.setAttribute("role", "button"); b.g.setAttribute("tabindex", "0"); b.g.setAttribute("aria-label", label + " herausdrehen oder eindrehen");
+    b.g.addEventListener("click", onClick);
+    b.g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); onClick(); } });
+    return b;
+  }
+  function upd(){
+    const allIn = sRem.every(r => !r);
+    sB.forEach((b, i) => { b.g.classList.toggle("removed", sRem[i]); b.set(sRem[i] || !allIn ? 0 : 0.42); });
+    sF.set(allIn ? 30 : 0);
+    sCap.textContent = allIn ? "Kette 1: alle leuchten, aber eher schwach" : "Kette 1: alles dunkel!";
+    let n = 0;
+    pB.forEach((b, i) => { b.g.classList.toggle("removed", pRem[i]); b.set(pRem[i] ? 0 : 1); pBrF[i].set(pRem[i] ? 0 : 45); if (!pRem[i]) n++; });
+    pTopF.set(n ? 25 + n * 12 : 0); pBotF.set(n ? 25 + n * 12 : 0);
+    pCap.textContent = `Kette 2: ${n} von 3 leuchten hell`;
+    if (tried.s && tried.p){ status.className = "status ok"; status.innerHTML = "<strong>Gut beobachtet!</strong> Kette 1 und Kette 2 verhalten sich ganz unterschiedlich. Schauen Sie sich auch die Helligkeit an."; done(); }
+  }
+  upd();
+}
+
+/* ---------- Level 6 ---------- */
+function buildL6(c, done){
+  // Teil A: Transistor als Schalter
+  c.append(h("p", {class:"q"}, "Teil A: Der Transistor als Schalter"));
+  const wrapA = h("div", {class:"svgwrap"}); c.append(wrapA);
+  const a = svgIn(wrapA, "0 0 320 200", "Transistor schaltet eine Lampe");
+  ["M33 95 V60 H82", "M118 60 H150 V110 H188", "M205 132 V172 H33 V140", "M288 110 V20 H205 V26", "M205 54 V88", "M205 172 H288 V150"].forEach(d => s("path", {d, class:"wire"}, a));
+  const ctrlF = addFlow(a, "M33 95 V60 H150 V110 H188 L205 128 V172 H33 V140", 10, 2.2, "dot small");
+  const loadF = addFlow(a, "M288 110 V20 H205 V172 H288 V150", 16, 3.6, "dot");
+  battery(a, 18, 95, 30, 45, "");
+  txt(a, 54, 122, "1.5 V", "svgtxt", "start").style.fontSize = "10px";
+  battery(a, 270, 110, 36, 40, "");
+  txt(a, 264, 134, "9 V", "svgtxt", "end").style.fontSize = "10px";
+  const lamp = bulb(a, 205, 40, 14);
+  s("circle", {cx:198, cy:110, r:24, class:"tr"}, a);
+  s("line", {x1:188, y1:96, x2:188, y2:124, class:"tline", "stroke-width":4}, a);
+  s("path", {d:"M188 104 L205 92 V88", class:"tline"}, a);
+  s("path", {d:"M188 116 L205 128 V132", class:"tline"}, a);
+  s("path", {d:"M199 120 L205 128 L196 127", class:"tline"}, a);
+  txt(a, 176, 103, "B", "svgtxt", "end"); txt(a, 213, 92, "C", "svgtxt", "start"); txt(a, 213, 134, "E", "svgtxt", "start");
+  txt(a, 150, 148, "Transistor", "svgtxt").style.fontSize = "10px";
+  s("circle", {cx:82, cy:60, r:3.5, class:"contact"}, a); s("circle", {cx:118, cy:60, r:3.5, class:"contact"}, a);
+  const lever = s("line", {x1:82, y1:60, x2:115, y2:42, class:"wire"}, a);
+  txt(a, 100, 84, "Taster", "svgtxt");
+  let pressed = false;
+  const tBtn = h("button", {class:"btn primary", type:"button", "aria-pressed":"false"}, "Taster drücken");
+  const meters = h("div", {class:"readout", "aria-live":"polite"});
+  c.append(h("div", {class:"row"}, tBtn), meters);
+  function updA(){
+    lever.setAttribute("x2", pressed ? 118 : 115); lever.setAttribute("y2", pressed ? 60 : 42);
+    ctrlF.set(pressed ? 22 : 0); loadF.set(pressed ? 70 : 0); lamp.set(pressed ? 1 : 0);
+    tBtn.textContent = pressed ? "Taster loslassen" : "Taster drücken"; tBtn.setAttribute("aria-pressed", pressed);
+    meters.innerHTML = `Steuerstrom (Basis, violett): ${pressed ? "1 mA" : "0 mA"}<br>Laststrom (Lampe): ${pressed ? "100 mA" : "0 mA"}`;
+  }
+  tBtn.onclick = () => { pressed = !pressed; updA(); };
+  updA();
+
+  // Teil B: Zwei Transistoren, zwei Schaltungen
+  c.append(h("p", {class:"q", style:"margin-top:22px"}, "Teil B: Zwei Transistoren, gesteuert von den Eingängen A und B"));
+  c.append(h("p", {class:"note"}, "Jeder Transistor wird von einem Eingang gesteuert: 1 bedeutet «Strom an der Basis, Transistor leitet», 0 bedeutet «sperrt». Testen Sie beide Schaltungen und füllen Sie die Tabellen aus."));
+  let mode = "s1", A = 0, B = 0;
+  const tabs = h("div", {class:"seg", style:"margin-bottom:8px", role:"group", "aria-label":"Schaltung wählen"});
+  const tabBtns = [["s1", "Schaltung 1"], ["s2", "Schaltung 2"]].map(([m, l]) => { const b = h("button", {type:"button", "aria-pressed": m === mode}, l); b.onclick = () => { mode = m; tabBtns.forEach(x => x.setAttribute("aria-pressed", x === b)); draw(); }; tabs.append(b); return b; });
+  c.append(tabs);
+  const wrapB = h("div", {class:"svgwrap"}); c.append(wrapB);
+  const bs = svgIn(wrapB, "0 0 320 200", "Logikschaltung");
+  const aBtn = h("button", {class:"tog", type:"button", "aria-pressed":"false"}, "A = 0");
+  const bBtn = h("button", {class:"tog", type:"button", "aria-pressed":"false"}, "B = 0");
+  const outT = h("span", {class:"readout", style:"margin:0", "aria-live":"polite"});
+  c.append(h("div", {class:"toggles"}, aBtn, bBtn, outT));
+  aBtn.onclick = () => { A = 1 - A; aBtn.textContent = "A = " + A; aBtn.setAttribute("aria-pressed", !!A); draw(); };
+  bBtn.onclick = () => { B = 1 - B; bBtn.textContent = "B = " + B; bBtn.setAttribute("aria-pressed", !!B); draw(); };
+  function tbox(svg, x, y, label, onState){
+    const r = s("rect", {x, y, width:56, height:30, rx:4, class:"tbox" + (onState ? " on" : "")}, svg);
+    txt(svg, x + 28, y + 19, label, "tbox-t");
+    return r;
+  }
+  function draw(){
+    removeFlows(bs); while (bs.firstChild) bs.removeChild(bs.firstChild);
+    battery(bs, 20, 70, 36, 70, "");
+    let out;
+    if (mode === "s1"){
+      out = A && B;
+      ["M38 66 V25 H280 V60", "M280 90 V120", "M280 150 V175 H38 V140"].forEach(d => s("path", {d, class:"wire"}, bs));
+      const f = addFlow(bs, "M38 66 V25 H280 V175 H38 V140", 22, 3); f.set(out ? 55 : 0);
+      tbox(bs, 252, 60, "T1 · A", A); tbox(bs, 252, 120, "T2 · B", B);
+    } else {
+      out = A || B;
+      ["M38 66 V25 H290", "M220 25 V70", "M220 100 V175", "M290 25 V70", "M290 100 V175", "M290 175 H38 V140"].forEach(d => s("path", {d, class:"wire"}, bs));
+      const fT = addFlow(bs, "M38 66 V25 H290", 10, 3), fB = addFlow(bs, "M290 175 H38 V140", 10, 3);
+      const f1 = addFlow(bs, "M220 25 V175", 6, 3), f2 = addFlow(bs, "M290 25 V175", 6, 3);
+      fT.set(out ? 50 : 0); fB.set(out ? 50 : 0); f1.set(A ? 45 : 0); f2.set(B ? 45 : 0);
+      tbox(bs, 192, 70, "T1 · A", A); tbox(bs, 262, 70, "T2 · B", B);
+    }
+    const l = bulb(bs, 130, 25, 14); l.set(out ? 1 : 0);
+    outT.textContent = "Lampe = " + (out ? 1 : 0);
+  }
+  draw();
+
+  // Wahrheitstabellen
+  const ROWS = [[0,0],[0,1],[1,0],[1,1]];
+  const TRUTH = {s1:[0,0,0,1], s2:[0,1,1,1]};
+  const vals = {s1:[null,null,null,null], s2:[null,null,null,null]};
+  const cells = {s1:[], s2:[]};
+  const tw = h("div", {class:"ttables"});
+  ["s1", "s2"].forEach(m => {
+    const tb = h("tbody");
+    ROWS.forEach(([x, y], i) => {
+      const b = h("button", {class:"tcell", type:"button", "aria-label":`Schaltung ${m === "s1" ? 1 : 2}, A ${x}, B ${y}, Lampe`}, "?");
+      b.onclick = () => { vals[m][i] = vals[m][i] === null ? 0 : vals[m][i] === 0 ? 1 : null; b.textContent = vals[m][i] === null ? "?" : vals[m][i]; b.classList.remove("ok", "bad"); };
+      cells[m].push(b);
+      tb.append(h("tr", {}, h("td", {}, x), h("td", {}, y), h("td", {}, b)));
+    });
+    tw.append(h("table", {class:"tt"}, h("caption", {}, m === "s1" ? "Schaltung 1" : "Schaltung 2"), h("thead", {}, h("tr", {}, h("th", {}, "A"), h("th", {}, "B"), h("th", {}, "Lampe"))), tb));
+  });
+  const chk = h("button", {class:"btn primary", type:"button"}, "Tabellen prüfen");
+  const tStatus = h("div", {class:"status", "aria-live":"polite"}, "Klicken Sie in die Felder der Spalte «Lampe», um 0 oder 1 einzutragen.");
+  c.append(tw, h("div", {class:"row"}, chk), tStatus);
+  chk.onclick = () => {
+    let wrong = 0, empty = 0;
+    ["s1", "s2"].forEach(m => cells[m].forEach((b, i) => { b.classList.remove("ok", "bad"); if (vals[m][i] === null){ empty++; return; } const ok = vals[m][i] === TRUTH[m][i]; b.classList.add(ok ? "ok" : "bad"); if (!ok) wrong++; }));
+    if (empty){ tStatus.className = "status warn"; tStatus.textContent = `Es fehlen noch ${empty} Einträge. Testen Sie mit den Knöpfen A und B.`; return; }
+    if (wrong){ tStatus.className = "status bad"; tStatus.textContent = `${wrong} Einträge stimmen noch nicht. Testen Sie diese Fälle nochmals in der Simulation.`; return; }
+    tStatus.className = "status ok";
+    tStatus.innerHTML = "<strong>Alles richtig!</strong> Schaltung 1 ist ein <strong>UND-Gatter</strong> (Transistoren hintereinander), Schaltung 2 ist ein <strong>ODER-Gatter</strong> (Transistoren nebeneinander).";
+    done();
+  };
+}
+
+/* ---------- Level 7 ---------- */
+function buildL7(c, done){
+  const SLOTS = [
+    {label:"1 · Helligkeits-Sensor", opts:[["Taster", false, "Ein Taster reagiert auf Drücken, nicht auf Licht."], ["Fotowiderstand (LDR)", true, "Sein Widerstand hängt von der Helligkeit ab."], ["Widerstand 470 Ω", false, "Ein normaler Widerstand ändert sich nicht mit dem Licht."]]},
+    {label:"2 · Elektronischer Schalter", opts:[["Glühlampe", false, "Eine Lampe leuchtet, schaltet aber nichts."], ["Transistor", true, "Er schaltet die LED, gesteuert vom Sensor."], ["Batterie", false, "Die Batterie liefert Energie, schaltet aber nichts."]]},
+    {label:"3 · Lichtquelle", opts:[["LED ohne Vorwiderstand", false, "Denken Sie an Level 4: Ohne Vorwiderstand brennt die LED durch."], ["Lautsprecher", false, "Ein Lautsprecher macht Töne, kein Licht."], ["LED mit Vorwiderstand 390 Ω", true, "Der Vorwiderstand schützt die LED."]]}
+  ];
+  c.append(h("p", {class:"q"}, "Phase 1: Bauteile auswählen"));
+  const choice = SLOTS.map(() => null);
+  const slotsEl = h("div", {class:"slots"});
+  const cards = SLOTS.map((sl, si) => {
+    const card = h("div", {class:"slotcard"}, h("h4", {}, sl.label));
+    const opts = h("div", {class:"opts"});
+    const fb = h("div", {class:"fb"});
+    const bs = sl.opts.map(([t], oi) => { const b = h("button", {class:"opt", type:"button"}, t); b.onclick = () => { choice[si] = oi; bs.forEach(x => x.classList.toggle("chosen", x === b)); card.classList.remove("ok", "bad"); fb.className = "fb"; fb.textContent = ""; }; opts.append(b); return b; });
+    card.append(opts, fb); slotsEl.append(card);
+    return {card, fb};
+  });
+  const buildBtn = h("button", {class:"btn primary", type:"button"}, "Schaltung prüfen");
+  const bStatus = h("div", {class:"status", "aria-live":"polite"}, "Wählen Sie für jede Stelle ein Bauteil.");
+  c.append(slotsEl, h("div", {class:"row"}, buildBtn), bStatus);
+  const phase2 = h("div", {hidden:true});
+  c.append(phase2);
+  let p2built = false;
+  buildBtn.onclick = () => {
+    if (choice.some(x => x === null)){ bStatus.className = "status warn"; bStatus.textContent = "Es fehlt noch mindestens ein Bauteil."; return; }
+    let ok = 0;
+    SLOTS.forEach((sl, si) => { const o = sl.opts[choice[si]]; cards[si].card.classList.remove("ok", "bad"); cards[si].card.classList.add(o[1] ? "ok" : "bad"); cards[si].fb.className = "fb " + (o[1] ? "ok" : "bad"); cards[si].fb.innerHTML = (o[1] ? "<strong>✓</strong> " : "<strong>✗</strong> ") + o[2]; if (o[1]) ok++; });
+    if (ok < 3){ bStatus.className = "status bad"; bStatus.textContent = `${ok} von 3 Bauteilen passen. Ändern Sie die rot markierten.`; return; }
+    bStatus.className = "status ok"; bStatus.innerHTML = "<strong>Schaltung komplett!</strong> Jetzt muss sie nur noch richtig eingestellt werden.";
+    phase2.hidden = false;
+    if (!p2built){ p2built = true; buildPhase2(); }
+    phase2.scrollIntoView({behavior:"smooth", block:"start"});
+  };
+
+  function buildPhase2(){
+    phase2.append(h("p", {class:"q", style:"margin-top:18px"}, "Phase 2: Schaltschwelle einstellen"));
+    phase2.append(h("p", {class:"note"}, "Mit dem Potentiometer (einem einstellbaren Widerstand) legen Sie fest, ab welcher Dunkelheit der Transistor die LED einschaltet. Ziel: am Mittag und bei bewölktem Himmel aus, in der Dämmerung und in der Nacht an."));
+    const wrap = h("div", {class:"svgwrap"}); phase2.append(wrap);
+    const sv = svgIn(wrap, "0 0 320 200", "Haus mit automatischer Aussenlampe");
+    const sky = s("rect", {x:0, y:0, width:320, height:200, rx:6}, sv);
+    const stars = s("g", {}, sv);
+    [[30,20],[90,40],[150,15],[200,35],[300,22],[120,60]].forEach(([x,y]) => s("circle", {cx:x, cy:y, r:1.6, fill:"var(--nord6)"}, stars));
+    const sun = s("circle", {cx:270, cy:40, r:15, fill:"var(--nord13)"}, sv);
+    const moon = s("circle", {cx:60, cy:38, r:11, fill:"var(--nord6)"}, sv);
+    s("rect", {x:0, y:160, width:320, height:40, class:"ground"}, sv);
+    s("rect", {x:40, y:110, width:80, height:50, class:"house"}, sv);
+    s("path", {d:"M32 112 L80 78 L128 112 Z", class:"roof"}, sv);
+    s("rect", {x:55, y:122, width:18, height:16, class:"win"}, sv);
+    s("rect", {x:90, y:130, width:16, height:30, class:"win"}, sv);
+    const lglow = s("circle", {cx:230, cy:80, r:70, fill:"url(#g-glow)", opacity:0}, sv);
+    s("line", {x1:230, y1:160, x2:230, y2:80, class:"post"}, sv);
+    const head = s("rect", {x:220, y:72, width:20, height:10, rx:3, fill:"var(--nord3)"}, sv);
+    const info = h("div", {class:"readout", "aria-live":"polite"});
+    const hIn = h("input", {type:"range", min:0, max:100, step:1, value:90, id:"hIn"});
+    const tIn = h("input", {type:"range", min:0, max:100, step:1, value:80, id:"tIn"});
+    const hOut = h("output", {for:"hIn"}), tOut = h("output", {for:"tIn"});
+    const ctrl = h("div", {class:"ctrl"}, h("label", {for:"hIn"}, "Umgebungshelligkeit"), hIn, hOut, h("label", {for:"tIn"}, "Potentiometer: LED an unter"), tIn, tOut);
+    const runBtn = h("button", {class:"btn primary", type:"button"}, "Testlauf starten (ein ganzer Tag)");
+    const results = h("div", {"aria-live":"polite"});
+    phase2.append(info, ctrl, h("div", {class:"row"}, runBtn), results);
+    const ldr = hh => 1 * Math.pow(200, (100 - hh) / 100); // kΩ
+    function render(){
+      const hh = +hIn.value, th = +tIn.value, on = hh < th;
+      hOut.textContent = hh + " %"; tOut.textContent = th + " %";
+      const col = hh >= 70 ? "--nord8" : hh >= 45 ? "--nord9" : hh >= 20 ? "--nord15" : "--nord1";
+      sky.setAttribute("fill", `var(${col})`);
+      stars.style.opacity = hh < 20 ? 1 : 0;
+      sun.setAttribute("cy", 30 + (100 - hh) * 1.4); sun.style.opacity = hh >= 15 ? 1 : 0;
+      moon.style.opacity = hh < 30 ? 1 : 0;
+      lglow.setAttribute("opacity", on ? 1 : 0);
+      head.setAttribute("fill", on ? "var(--nord13)" : "var(--nord3)");
+      info.innerHTML = `LDR-Widerstand: ${ldr(hh).toFixed(1)} kΩ · Transistor: ${on ? "leitet, LED an" : "sperrt, LED aus"}`;
+      return on;
+    }
+    hIn.oninput = render; tIn.oninput = render; render();
+    const SC = [["Mittag", 90, false], ["Bewölkt", 55, false], ["Dämmerung", 25, true], ["Nacht", 5, true]];
+    runBtn.onclick = () => {
+      runBtn.disabled = hIn.disabled = tIn.disabled = true;
+      results.innerHTML = "";
+      const tb = h("tbody");
+      results.append(h("table", {class:"results"}, h("thead", {}, h("tr", {}, h("th", {}, "Tageszeit"), h("th", {}, "Helligkeit"), h("th", {}, "Soll"), h("th", {}, "Ist"), h("th", {}, ""))), tb));
+      let i = 0, okN = 0;
+      const stepRun = () => {
+        if (i >= SC.length){
+          runBtn.disabled = hIn.disabled = tIn.disabled = false;
+          const st = h("div", {class:"status " + (okN === 4 ? "ok" : "bad")});
+          if (okN === 4){ st.innerHTML = "<strong>Das Nachtlicht funktioniert!</strong> Die Aussenbeleuchtung schaltet genau dann ein, wenn es dunkel wird."; done(); }
+          else {
+            const tooHigh = !!tb.querySelector("tr[data-err='an']");
+            st.innerHTML = "<strong>Noch nicht ganz.</strong> " + (tooHigh ? "Die Lampe brennt schon am Tag: Stellen Sie die Schwelle tiefer ein." : "Die Lampe bleibt in der Dämmerung aus: Stellen Sie die Schwelle höher ein.");
+          }
+          results.append(st);
+          return;
+        }
+        const [name, hh, want] = SC[i];
+        hIn.value = hh; const got = render();
+        const ok = got === want; if (ok) okN++;
+        const tr = h("tr", {}, h("td", {}, name), h("td", {class:"mono"}, hh + " %"), h("td", {}, want ? "an" : "aus"), h("td", {}, got ? "an" : "aus"), h("td", {}, ok ? "✓" : "✗"));
+        if (!ok) tr.setAttribute("data-err", got ? "an" : "aus");
+        tb.append(tr);
+        i++; setTimeout(stepRun, 750);
+      };
+      stepRun();
+    };
+  }
+}
+
+/* ---------- Inhalte ---------- */
+const LEVELS = [
+ {n:1, sys:"Notbeleuchtung", title:"Den Stromkreis schliessen", letter:"L", color:"--nord11", build:buildL1,
+  story:"03:12 Uhr. Die Notbeleuchtung ist ausgefallen. Im Werkzeugkasten finden Sie Batterien, Lämpchen und Drähte, aber keine Anleitung. Ein Techniker hat sechs Skizzen hinterlassen. Nur bei einigen leuchtet das Lämpchen wirklich.",
+  predict:{q:"Lämpchen und Batterie berühren sich nicht. Wie viele Drähte braucht es mindestens, damit das Lämpchen leuchtet?", opts:["Ein Draht genügt.", "Zwei Drähte.", "Drei Drähte."],
+   answer:"Zwei Drähte. Der Strom braucht einen Weg von der Batterie zum Lämpchen und einen Weg zurück."},
+  task:"Schauen Sie sich die sechs Anordnungen genau an. Entscheiden Sie bei jeder, ob das Lämpchen leuchtet. Danach testen Sie alle auf einmal.",
+  explain:"<ul><li>Ein Lämpchen leuchtet nur in einem <strong>geschlossenen Stromkreis</strong>: von einem Pol der Batterie durch das Lämpchen zum anderen Pol.</li><li>Das Lämpchen hat <strong>zwei Kontakte</strong>: das Gewinde und den Fusskontakt. Dazwischen liegt der Glühdraht. Der Strom muss durch ihn hindurch.</li><li>Ist der Kreis irgendwo unterbrochen, fliesst kein Strom. Genau das macht ein <strong>Schalter</strong>.</li><li>Werden die beiden Pole direkt verbunden, entsteht ein <strong>Kurzschluss</strong>. Es fliesst sehr viel Strom, Drähte und Batterie werden heiss.</li></ul>",
+  checks:[
+   {q:"Ein Schalter ist offen. Was bedeutet das?", opts:[["Der Strom kann ungehindert fliessen.", false, "Bei einem offenen Schalter ist eine Lücke im Stromkreis."], ["Der Stromkreis ist unterbrochen, es fliesst kein Strom.", true, "Ein offener Schalter unterbricht den Kreis, die Lampe ist aus."], ["Die Batterie lädt sich auf.", false, "Eine Batterie lädt sich nicht von selbst auf."]]},
+   {q:"Warum ist ein Kurzschluss gefährlich?", opts:[["Es fliesst gar kein Strom mehr.", false, "Im Gegenteil: Der Strom findet einen sehr bequemen Weg."], ["Das Lämpchen leuchtet viel zu hell.", false, "Das Lämpchen wird beim Kurzschluss umgangen, es leuchtet kaum."], ["Es fliesst sehr viel Strom, Drähte und Batterie werden heiss.", true, "Ohne Lämpchen im Weg wird der Strom sehr gross. Das kann sogar einen Brand auslösen."]]}
+  ]},
+ {n:2, sys:"Prüfstation", title:"Leiter oder Isolator?", letter:"E", color:"--nord12", build:buildL2,
+  story:"Für die Reparatur brauchen Sie Material, das Strom leitet. In der Prüfstation liegen zwölf Gegenstände aus dem Lager. Finden Sie heraus, welche davon den Strom durchlassen.",
+  predict:{q:"Welche Aussage stimmt Ihrer Meinung nach?", opts:["Nur Metalle leiten Strom.", "Auch manche Stoffe, die keine Metalle sind, leiten Strom.", "Alle Stoffe leiten Strom gleich gut."],
+   answer:"Metalle leiten gut, aber auch Grafit (Bleistiftmine) und Salzwasser leiten Strom, obwohl sie keine Metalle sind."},
+  task:"Testen Sie alle zwölf Gegenstände im Durchgangsprüfer. Achten Sie auf das Lämpchen und auf das Messgerät.",
+  explain:"<ul><li><strong>Leiter</strong> lassen Strom durch: alle Metalle (Kupfer, Eisen, Aluminium …), aber auch Grafit. In Metallen gibt es Elektronen, die sich frei bewegen können.</li><li>In <strong>Salzwasser</strong> bewegen sich elektrisch geladene Teilchen. Darum leitet es. Reines Wasser leitet fast nicht.</li><li><strong>Isolatoren</strong> lassen keinen Strom durch: Kunststoff, Gummi, Glas, trockenes Holz, Papier. Darum sind Kabel mit Kunststoff ummantelt.</li><li>Auch der <strong>menschliche Körper</strong> leitet, weil er salzhaltiges Wasser enthält. Darum ist Strom aus der Steckdose lebensgefährlich.</li></ul>",
+  checks:[
+   {q:"Warum sind Kabel mit Kunststoff ummantelt?", opts:[["Damit der Strom schneller fliesst.", false, "Die Hülle hat keinen Einfluss auf die Geschwindigkeit."], ["Kunststoff isoliert. So bekommt man beim Berühren keinen Schlag.", true, "Die Hülle ist ein Isolator und schützt uns."], ["Kunststoff leitet besser als Kupfer.", false, "Kunststoff leitet gar nicht, Kupfer sehr gut."]]},
+   {q:"Welches dieser Materialien leitet Strom?", opts:[["Gummi", false, "Gummi ist ein Isolator."], ["Glas", false, "Glas ist ein sehr guter Isolator."], ["Grafit", true, "Grafit ist kein Metall, leitet aber trotzdem."]]},
+   {q:"Warum soll man elektrische Geräte nie mit nassen Händen bedienen?", opts:[["Wasser mit gelösten Salzen leitet. Strom kann durch den Körper fliessen.", true, "Nasse Haut leitet viel besser als trockene."], ["Wasser isoliert, das Gerät funktioniert dann nicht.", false, "Wasser mit Salzen darin leitet Strom."], ["Nur das Gerät könnte kaputtgehen, sonst passiert nichts.", false, "Es kann auch für Sie gefährlich werden."]]}
+  ]},
+ {n:3, sys:"Pumpenraum", title:"Spannung, Strom und Widerstand", letter:"U", color:"--nord13", build:buildL3,
+  story:"Im Pumpenraum hängt ein altes Schild: «Strom verhält sich wie Wasser in Rohren.» Die Steuerung zeigt beide Kreisläufe nebeneinander. Um das System neu zu starten, müssen Sie die Anzeigen auf bestimmte Werte bringen.",
+  predict:{q:"Die Spannung wird doppelt so gross, der Widerstand bleibt gleich. Was passiert mit dem Strom?", opts:["Er wird halb so gross.", "Er bleibt gleich.", "Er wird doppelt so gross."],
+   answer:"Der Strom wird doppelt so gross. Mehr Antrieb bedeutet mehr Fluss."},
+  task:"Verändern Sie Spannung und Widerstand mit den Schiebereglern. Beobachten Sie beide Kreisläufe und lösen Sie die drei Herausforderungen.",
+  explain:"<ul><li><strong>Spannung U</strong> (Einheit Volt, V) ist der Antrieb, wie die Pumpe im Wasserkreislauf.</li><li><strong>Strom I</strong> (Einheit Ampere, A) gibt an, wie viel fliesst, wie die Wassermenge pro Sekunde.</li><li><strong>Widerstand R</strong> (Einheit Ohm, Ω) bremst den Strom, wie eine Engstelle im Rohr.</li><li>Das <strong>ohmsche Gesetz</strong> verbindet die drei: <span class='formula'>I = U / R</span><br>Beispiel: <span class='mono'>12 V / 4 Ω = 3 A</span></li></ul>",
+  checks:[
+   {q:"Eine Batterie hat 6 V, der Widerstand beträgt 2 Ω. Wie gross ist der Strom?", opts:[["12 A", false, "Hier wurde multipliziert. Rechnen Sie I = U / R."], ["3 A", true, "6 V / 2 Ω = 3 A."], ["0.33 A", false, "Hier wurde R / U gerechnet. Es heisst I = U / R."]]},
+   {q:"Was entspricht im Wasserkreislauf dem elektrischen Widerstand?", opts:[["Die Pumpe", false, "Die Pumpe entspricht der Spannung."], ["Die Wassermenge, die fliesst", false, "Die Wassermenge entspricht dem Strom."], ["Die Engstelle im Rohr", true, "Je enger das Rohr, desto weniger fliesst."]]},
+   {q:"Der Widerstand wird grösser, die Spannung bleibt gleich. Der Strom …", opts:[["wird kleiner.", true, "Mehr Widerstand bremst stärker."], ["wird grösser.", false, "Probieren Sie es in der Simulation aus: Der Regler R nach rechts bremst."], ["bleibt gleich.", false, "Der Strom hängt vom Widerstand ab."]]}
+  ]},
+ {n:4, sys:"Signallampen", title:"Rette die LED", letter:"C", color:"--nord14", build:buildL4,
+  story:"Die Signallampen der Station sind LEDs. Ersatz-LEDs liegen bereit, die Batterie hat 9 V. Leider sind schon mehrere LEDs durchgebrannt. Finden Sie heraus, warum, bevor alle Ersatz-LEDs verbraucht sind.",
+  predict:{q:"Was passiert, wenn man eine LED direkt, also ohne Widerstand, an eine 9-V-Batterie anschliesst?", opts:["Sie leuchtet besonders hell und lange.", "Sie geht kaputt.", "Sie leuchtet gar nicht."],
+   answer:"Sie geht kaputt. Ohne Widerstand fliesst viel zu viel Strom durch die LED."},
+  task:"Wählen Sie einen Vorwiderstand und schalten Sie ein. Ziel: Die LED soll hell leuchten und nicht durchbrennen. Durchgebrannte LEDs können Sie ersetzen.",
+  explain:"<ul><li>Eine LED braucht etwa <strong>2 V</strong> und verträgt höchstens <strong>20 mA</strong> (0.02 A). Mehr Strom zerstört sie.</li><li>Ein <strong>Vorwiderstand</strong> begrenzt den Strom. Er übernimmt die restliche Spannung: <span class='mono'>9 V − 2 V = 7 V</span>.</li><li>Berechnung: <span class='formula'>R = U / I = 7 V / 0.02 A = 350 Ω</span></li><li>Widerstände gibt es nur in bestimmten Grössen. Man nimmt den <strong>nächstgrösseren</strong> Wert, hier 390 Ω. Ist der Widerstand viel zu gross, leuchtet die LED nur schwach.</li></ul>",
+  checks:[
+   {q:"Wozu dient der Vorwiderstand?", opts:[["Er erhöht die Spannung der Batterie.", false, "Ein Widerstand kann keine Spannung erzeugen."], ["Er begrenzt den Strom, der durch die LED fliesst.", true, "So bleibt der Strom unter 20 mA."], ["Er speichert Strom für später.", false, "Ein Widerstand speichert nichts."]]},
+   {q:"Mit 220 Ω fliessen etwa 32 mA. Was passiert mit der LED?", opts:[["Sie leuchtet optimal.", false, "32 mA ist mehr als die erlaubten 20 mA."], ["Sie leuchtet nur schwach.", false, "Es fliesst sogar zu viel Strom, nicht zu wenig."], ["Sie wird beschädigt, weil mehr als 20 mA fliessen.", true, "Genau: Die Grenze von 20 mA ist überschritten."]]},
+   {q:"Berechnet wurden 350 Ω. Warum nimmt man 390 Ω und nicht 330 Ω?", opts:[["Mit dem grösseren Wert bleibt der Strom sicher unter 20 mA.", true, "Mit 330 Ω wären es etwa 21 mA, also knapp zu viel."], ["330 Ω gibt es nicht zu kaufen.", false, "330 Ω gibt es. Rechnen Sie den Strom aus: 7 V / 330 Ω."], ["Das spielt keine Rolle.", false, "Rechnen Sie nach: Mit 330 Ω liegt der Strom über 20 mA."]]}
+  ]},
+ {n:5, sys:"Korridorbeleuchtung", title:"Die Lichterkette", letter:"H", color:"--nord15", build:buildL5,
+  story:"Im Korridor hängen zwei Lichterketten mit je drei Lämpchen. Bei der einen Kette ist früher ein Lämpchen kaputtgegangen, und sofort war die ganze Kette dunkel. Bei der anderen ist das nie passiert. Untersuchen Sie den Unterschied.",
+  predict:{q:"Bei einer alten Lichterkette geht ein Lämpchen kaputt, und die ganze Kette wird dunkel. Warum?", opts:["Die Batterie ist zufällig gleichzeitig leer geworden.", "Die Lämpchen sind hintereinander geschaltet. Fehlt eines, ist der Kreis unterbrochen.", "Die anderen Lämpchen sind zu schwach."],
+   answer:"Die Lämpchen sind hintereinander (in Reihe) geschaltet. Fehlt eines, ist der einzige Weg des Stroms unterbrochen."},
+  task:"Drehen Sie in beiden Ketten ein Lämpchen heraus, indem Sie darauf klicken. Achten Sie darauf, was mit den anderen passiert und wie hell sie leuchten.",
+  explain:"<ul><li><strong>Reihenschaltung</strong> (Kette 1): Alle Lämpchen liegen auf einem einzigen Weg. Fehlt eines, ist der ganze Kreis unterbrochen. Die Spannung teilt sich auf, darum leuchten die Lämpchen schwächer.</li><li><strong>Parallelschaltung</strong> (Kette 2): Jedes Lämpchen hat einen eigenen Weg zur Batterie und erhält die volle Spannung. Fällt eines aus, leuchten die anderen weiter.</li><li>Die Steckdosen und Lampen in einem Haus sind <strong>parallel</strong> geschaltet.</li></ul>",
+  checks:[
+   {q:"Sie schalten das Licht in der Küche aus, im Bad bleibt es an. Wie sind die Lampen geschaltet?", opts:[["In Reihe", false, "Dann würde mit der Küche auch das Bad dunkel."], ["Parallel", true, "Jede Lampe hat ihren eigenen Weg."], ["Gar nicht verbunden", false, "Beide hängen am gleichen Stromnetz."]]},
+   {q:"Drei gleiche Lämpchen sind in Reihe an 6 V angeschlossen. Wie viel Spannung erhält jedes?", opts:[["6 V", false, "Das wäre bei einer Parallelschaltung so."], ["18 V", false, "Die Spannung kann nicht grösser werden als die der Batterie."], ["2 V", true, "Die 6 V teilen sich auf drei Lämpchen auf."]]},
+   {q:"In einer Parallelschaltung wird ein Lämpchen herausgedreht. Was passiert?", opts:[["Die anderen leuchten weiter.", true, "Ihre Wege sind nicht unterbrochen."], ["Alle gehen aus.", false, "Das passiert bei der Reihenschaltung."], ["Die anderen gehen kaputt.", false, "Sie erhalten weiterhin die gleiche Spannung."]]}
+  ]},
+ {n:6, sys:"Steuerzentrale", title:"Der Transistor als Schalter", letter:"T", color:"--nord7", build:buildL6,
+  story:"Die Steuerzentrale ist das Gehirn der Station. Sie trifft Entscheidungen mit winzigen elektrischen Schaltern, die man Transistoren nennt. Finden Sie heraus, wie man mit Strom «denken» kann.",
+  predict:{q:"Ein Computer rechnet nur mit 0 und 1. Wie könnte man mit Strom eine 1 und eine 0 darstellen?", opts:["Mit roten und grünen Kabeln.", "Strom fliesst = 1, kein Strom = 0.", "Mit grossen und kleinen Batterien."],
+   answer:"Strom fliesst = 1, kein Strom = 0. Transistoren schalten den Strom ein und aus."},
+  task:"Teil A: Drücken Sie den Taster und beobachten Sie beide Stromkreise. Teil B: Testen Sie die zwei Schaltungen mit den Eingängen A und B und füllen Sie die Tabellen aus.",
+  explain:"<ul><li>Ein <strong>Transistor</strong> ist ein elektrischer Schalter ohne bewegliche Teile. Ein kleiner Strom an der Basis (B) schaltet einen grossen Strom zwischen C und E ein.</li><li>Zwei Transistoren <strong>hintereinander</strong>: Die Lampe leuchtet nur, wenn A <em>und</em> B auf 1 stehen. Das ist ein <strong>UND-Gatter</strong>.</li><li>Zwei Transistoren <strong>nebeneinander</strong>: Die Lampe leuchtet, wenn A <em>oder</em> B (oder beide) auf 1 stehen. Das ist ein <strong>ODER-Gatter</strong>.</li><li>Ein Prozessor enthält Milliarden solcher Transistoren. Aus Gattern wie UND und ODER wird jede Rechnung des Computers aufgebaut.</li></ul>",
+  checks:[
+   {q:"Was macht der Transistor in Teil A?", opts:[["Er erzeugt den Strom für die Lampe.", false, "Den Strom liefert die 9-V-Batterie."], ["Er schaltet mit einem kleinen Strom einen grossen Strom ein.", true, "1 mA an der Basis schaltet 100 mA für die Lampe."], ["Er speichert das Licht der Lampe.", false, "Ein Transistor speichert kein Licht."]]},
+   {q:"In einer UND-Schaltung leuchtet die Lampe, wenn …", opts:[["mindestens ein Eingang auf 1 steht.", false, "Das beschreibt ODER."], ["beide Eingänge auf 1 stehen.", true, "Nur dann leiten beide Transistoren."], ["kein Eingang auf 1 steht.", false, "Dann sperren beide Transistoren."]]},
+   {q:"A = 1 und B = 0. Was ergibt ODER?", opts:[["0", false, "Bei ODER genügt ein Eingang mit 1."], ["1", true, "Ein Weg ist offen, die Lampe leuchtet."], ["Das lässt sich nicht sagen.", false, "Schauen Sie in Ihre Tabelle für Schaltung 2."]]}
+  ]},
+ {n:7, sys:"Aussenbeleuchtung", title:"Bosslevel: das automatische Nachtlicht", letter:"E", color:"--nord8", build:buildL7,
+  story:"Letztes System. Die Aussenbeleuchtung soll von selbst angehen, sobald es dunkel wird, und am Tag aus sein. Wählen Sie die richtigen Bauteile und stellen Sie die Schaltung richtig ein. Dann ist die Station gerettet.",
+  predict:{q:"Ein Licht soll automatisch angehen, wenn es dunkel wird. Was braucht es dafür unbedingt?", opts:["Eine stärkere Batterie.", "Einen Taster, den jemand drückt.", "Einen Sensor, der die Helligkeit misst."],
+   answer:"Einen Sensor, der die Helligkeit misst. Ohne Sensor «weiss» die Schaltung nicht, ob es dunkel ist."},
+  task:"Phase 1: Wählen Sie für jede Stelle das passende Bauteil. Phase 2: Stellen Sie das Potentiometer so ein, dass der Testlauf über einen ganzen Tag gelingt.",
+  explain:"<ul><li>Ein <strong>Fotowiderstand (LDR)</strong> ändert seinen Widerstand mit dem Licht: hell = kleiner Widerstand, dunkel = grosser Widerstand.</li><li>Wird es dunkel, ändert sich dadurch die Spannung an der Basis des <strong>Transistors</strong>. Er beginnt zu leiten und schaltet die LED ein.</li><li>Mit dem <strong>Potentiometer</strong> stellt man ein, ab welcher Dunkelheit das geschieht.</li><li>Das ist das Prinzip <strong>Eingabe → Verarbeitung → Ausgabe</strong>: Sensor → Transistor → LED. So funktionieren auch Strassenlampen, automatische Autoscheinwerfer und die Helligkeitsanpassung am Handy.</li></ul>",
+  checks:[
+   {q:"Was passiert mit dem Widerstand eines LDR, wenn es dunkler wird?", opts:[["Er wird kleiner.", false, "Schauen Sie auf die Anzeige in der Simulation bei Nacht."], ["Er wird grösser.", true, "Im Dunkeln hat ein LDR einen grossen Widerstand."], ["Er bleibt gleich.", false, "Dann könnte er nicht als Sensor dienen."]]},
+   {q:"Wozu dient das Potentiometer im Nachtlicht?", opts:[["Damit stellt man ein, ab welcher Dunkelheit die LED angeht.", true, "Es legt die Schaltschwelle fest."], ["Es macht die LED heller.", false, "Die Helligkeit der LED bestimmt der Vorwiderstand."], ["Es misst die Helligkeit.", false, "Das macht der LDR."]]},
+   {q:"Welches Prinzip steckt hinter dem Nachtlicht?", opts:[["Ausgabe → Eingabe → Verarbeitung", false, "Die Reihenfolge stimmt nicht: Zuerst wird gemessen."], ["Eingabe (Sensor) → Verarbeitung (Transistor) → Ausgabe (LED)", true, "Das gleiche Prinzip gilt auch für Computer."], ["Nur Ausgabe, ohne Eingabe", false, "Ohne Eingabe wüsste die Schaltung nicht, wann es dunkel ist."]]}
+  ]}
+];
+
+/* ---------- Ansichten ---------- */
+const view = document.getElementById("view");
+let current = null;
+
+function unlocked(n){ return state.teacher || n === 1 || !!state.solved[n-1]; }
+function allSolved(){ return LEVELS.every(L => state.solved[L.n]); }
+
+function renderCode(){
+  const bar = document.getElementById("codebar");
+  bar.innerHTML = "";
+  bar.append(h("span", {class:"lbl"}, "Code"));
+  LEVELS.forEach(L => bar.append(h("span", {class:"slot" + (state.solved[L.n] ? " got" : ""), title:`Level ${L.n}`}, state.solved[L.n] ? L.letter : "?")));
+}
+
+function renderHome(){
+  resetAnim(); view.innerHTML = "";
+  const done = LEVELS.filter(L => state.solved[L.n]).length;
+  view.append(h("section", {class:"intro"},
+    h("div", {class:"log-label"}, "Logbuch · Station Volta · 03:12 Uhr"),
+    h("h2", {}, "Stromausfall!"),
+    h("p", {}, "Die Station liegt im Dunkeln, die Tür zum Kontrollraum ist verriegelt. Der Türcode wurde in sieben Teile zerlegt und in den Systemen der Station versteckt. Jedes System läuft erst wieder, wenn Sie verstehen, wie es funktioniert."),
+    h("p", {}, h("strong", {}, "Ihre Mission: "), "Reparieren Sie alle sieben Systeme, sammeln Sie die Code-Teile und bringen Sie das Licht zurück."),
+    h("div", {class:"howto"},
+      h("div", {}, h("b", {}, "1 · Vermuten"), "Bevor Sie etwas ausprobieren, legen Sie sich auf eine Vermutung fest."),
+      h("div", {}, h("b", {}, "2 · Experimentieren"), "In der Simulation prüfen Sie, ob Ihre Vermutung stimmt."),
+      h("div", {}, h("b", {}, "3 · Verstehen"), "Die Erklärung fasst das Wichtigste zusammen."),
+      h("div", {}, h("b", {}, "4 · Code holen"), "Alle Check-Fragen richtig: Sie erhalten einen Teil des Türcodes.")),
+    h("p", {class:"muted note", style:"margin-top:10px"}, `Fortschritt: ${done} von 7 Systemen repariert.`)));
+  const grid = h("div", {class:"grid"});
+  LEVELS.forEach(L => {
+    const open = unlocked(L.n), ok = !!state.solved[L.n];
+    const card = h("button", {class:"card", type:"button", disabled: !open, style:`--lv:var(${L.color})`, onclick:() => go("level-" + L.n)},
+      h("span", {class:"num"}, document.documentElement.dataset.variant === "a" ? "SYS-" + String(L.n).padStart(2, "0") : String(L.n)),
+      h("span", {class:"sys"}, L.sys),
+      h("span", {class:"ttl"}, L.title),
+      h("span", {class:"chip" + (ok ? " ok" : open ? " open" : "")}, ok ? "✓ repariert" : open ? "bereit" : "🔒 gesperrt"));
+    grid.append(card);
+  });
+  view.append(grid);
+  const fin = h("section", {class:"final" + (allSolved() ? " ready" : "")});
+  if (state.final){
+    fin.append(h("h3", {}, "✓ Die Tür ist offen."), h("p", {}, "Sie haben die Station gerettet."), h("button", {class:"btn primary", type:"button", onclick:() => go("finale")}, "Zum Kontrollraum"));
+  } else if (allSolved()){
+    const inp = h("input", {class:"codein", maxlength:7, "aria-label":"Türcode eingeben", autocomplete:"off"});
+    const fb = h("div", {class:"fb", "aria-live":"polite"});
+    const tryCode = () => {
+      if (inp.value.trim().toUpperCase() === CODE){ state.final = true; save(); go("finale"); }
+      else { fb.className = "fb bad"; fb.innerHTML = "<strong>✗ Zugang verweigert.</strong> Lesen Sie die sieben Code-Teile oben in der Reihenfolge der Levels."; }
+    };
+    inp.addEventListener("keydown", e => { if (e.key === "Enter") tryCode(); });
+    fin.append(h("h3", {}, "Tür zum Kontrollraum"), h("p", {}, "Alle Systeme laufen wieder. Geben Sie den Türcode ein."), h("div", {class:"row"}, inp, h("button", {class:"btn primary", type:"button", onclick:tryCode}, "Tür öffnen")), fb);
+  } else {
+    fin.append(h("h3", {}, "🔒 Tür zum Kontrollraum"), h("p", {class:"muted"}, "Die Tür lässt sich erst öffnen, wenn alle sieben Code-Teile gefunden sind."));
+  }
+  view.append(fin);
+}
+
+function step(num, label){
+  const body = h("div", {class:"step-body"});
+  const el = h("section", {class:"step"}, h("div", {class:"step-head"}, h("span", {class:"step-num"}, String(num)), h("h3", {}, label)), body);
+  return {el, body};
+}
+
+function renderLevel(n){
+  resetAnim(); view.innerHTML = "";
+  const L = LEVELS[n-1];
+  view.style.setProperty("--lv", `var(${L.color})`);
+  const top = h("div", {class:"lvl-top"}, h("button", {class:"btn ghost", type:"button", onclick:() => go("home")}, "← Stationskarte"), h("span", {class:"lvl-tag"}, `Level ${n} von 7` + (state.solved[n] ? " · ✓ repariert" : "")));
+  const head = h("header", {class:"lvl-head"}, h("div", {class:"kicker"}, `System ${String(n).padStart(2, "0")} · ${L.sys}`), h("h2", {}, L.title));
+  const story = h("div", {class:"story"}, h("div", {class:"story-label"}, "Logbuch"), h("p", {}, L.story));
+  const s1 = step(1, "Ihre Vermutung"), s2 = step(2, "Experiment"), s3 = step(3, "Erklärung"), s4 = step(4, "Check");
+  [s2, s3, s4].forEach(x => x.el.hidden = true);
+  view.append(top, head, story, s1.el, s2.el, s3.el, s4.el);
+  s1.body.append(h("p", {class:"q"}, L.predict.q));
+  const optWrap = h("div", {class:"opts"});
+  const note = h("p", {class:"note muted", "aria-live":"polite"});
+  s1.body.append(optWrap, note);
+  let built = false, restOpen = false;
+  const openExp = scroll => {
+    s2.el.hidden = false;
+    if (!built){ built = true; s2.body.append(h("p", {class:"task"}, L.task)); const box = h("div", {class:"sim"}); s2.body.append(box); L.build(box, expDone); }
+    if (scroll) setTimeout(() => s2.el.scrollIntoView({behavior:"smooth", block:"start"}), 60);
+  };
+  function expDone(){ if (!state.exp[n]){ state.exp[n] = true; save(); } openRest(true); }
+  function openRest(scroll){
+    if (restOpen) return; restOpen = true;
+    s3.el.hidden = false; s4.el.hidden = false;
+    const p = state.pred[n];
+    s3.body.append(h("div", {class:"compare"}, h("strong", {}, "Ihre Vermutung: "), p !== undefined && p !== null ? `«${L.predict.opts[p]}»` : "(keine)", h("br"), h("strong", {}, "Auflösung: "), L.predict.answer));
+    s3.body.append(h("div", {class:"merke", html:"<div class='merke-label'>Merke</div>" + L.explain}));
+    buildChecks(L, s4.body);
+    if (scroll) setTimeout(() => s3.el.scrollIntoView({behavior:"smooth", block:"start"}), 900);
+  }
+  L.predict.opts.forEach((t, i) => {
+    const b = h("button", {class:"opt" + (state.pred[n] === i ? " chosen" : ""), type:"button"}, t);
+    b.onclick = () => {
+      state.pred[n] = i; save();
+      [...optWrap.children].forEach((x, j) => x.classList.toggle("chosen", j === i));
+      note.textContent = "Vermutung notiert. Prüfen Sie sie jetzt im Experiment.";
+      openExp(!built);
+    };
+    optWrap.append(b);
+  });
+  if (state.pred[n] !== undefined && state.pred[n] !== null){ note.textContent = "Vermutung notiert."; openExp(false); }
+  if (state.exp[n]) openRest(false);
+  window.scrollTo(0, 0);
+}
+
+function buildChecks(L, wrap){
+  let right = 0;
+  wrap.append(h("p", {class:"muted note"}, "Beantworten Sie alle Fragen richtig, um den Code-Teil freizuschalten. Bei einer falschen Antwort erhalten Sie einen Hinweis und können es nochmals versuchen."));
+  L.checks.forEach((c, qi) => {
+    const box = h("div", {class:"check"}, h("p", {class:"q"}, `${qi+1}. ${c.q}`));
+    const opts = h("div", {class:"opts"});
+    const fb = h("div", {class:"fb", "aria-live":"polite"});
+    let solved = false;
+    c.opts.forEach(([t, ok, f]) => {
+      const b = h("button", {class:"opt", type:"button"}, t);
+      b.onclick = () => {
+        if (solved) return;
+        if (ok){
+          solved = true; b.classList.add("ok"); [...opts.children].forEach(x => x.disabled = true);
+          fb.className = "fb ok"; fb.innerHTML = "<strong>✓ Richtig.</strong> " + f;
+          right++; if (right === L.checks.length) solve(L, wrap);
+        } else {
+          b.classList.add("bad"); b.disabled = true;
+          fb.className = "fb bad"; fb.innerHTML = "<strong>✗ Noch nicht.</strong> " + f;
+        }
+      };
+      opts.append(b);
+    });
+    box.append(opts, fb); wrap.append(box);
+  });
+}
+
+function solve(L, wrap){
+  const first = !state.solved[L.n];
+  state.solved[L.n] = true; save(); renderCode();
+  const next = L.n < 7;
+  const r = h("div", {class:"reward", role:"status"},
+    h("div", {class:"reward-tile", "aria-hidden":"true"}, L.letter),
+    h("div", {},
+      h("strong", {}, first ? "Code-Teil gefunden!" : "Code-Teil bestätigt."),
+      h("p", {}, `Teil ${L.n} des Türcodes lautet «${L.letter}». Das System «${L.sys}» läuft wieder.`),
+      h("button", {class:"btn primary", type:"button", onclick:() => go(next ? "level-" + (L.n + 1) : "home")}, next ? `Weiter zu Level ${L.n + 1} →` : "Zur Stationskarte: Tür öffnen →")));
+  wrap.append(r);
+  setTimeout(() => r.scrollIntoView({behavior:"smooth", block:"center"}), 100);
+}
+
+function renderFinale(){
+  resetAnim(); view.innerHTML = "";
+  const wrap = h("div", {class:"finale-svg"});
+  const sec = h("section", {class:"finale"}, wrap);
+  view.append(sec);
+  const sv = svgIn(wrap, "0 0 200 200", "Leuchtende Glühbirne");
+  const g = s("circle", {cx:100, cy:85, r:95, fill:"url(#g-glow)", opacity:1}, sv);
+  s("circle", {cx:100, cy:85, r:48, class:"glass"}, sv);
+  s("path", {d:"M84 132 L82 82 L90 96 L100 74 L110 96 L118 82 L116 132", class:"filament hot"}, sv);
+  s("rect", {x:78, y:130, width:44, height:36, rx:5, class:"metal"}, sv);
+  [140, 148, 156].forEach(y => s("line", {x1:78, x2:122, y1:y, y2:y, class:"thread"}, sv));
+  s("circle", {cx:100, cy:172, r:7, class:"tip"}, sv);
+  sec.append(h("h2", {}, "Licht an!"),
+    h("p", {}, "Die Tür öffnet sich, im Kontrollraum gehen alle Lichter an. Sie haben die Station Volta gerettet."),
+    h("p", {class:"q"}, "Das haben Sie unterwegs herausgefunden:"),
+    h("ul", {},
+      h("li", {}, "Strom fliesst nur in einem geschlossenen Stromkreis. Ein Kurzschluss ist gefährlich."),
+      h("li", {}, "Metalle, Grafit und Salzwasser leiten. Kunststoff, Glas und Gummi isolieren."),
+      h("li", {}, "Spannung treibt an, Widerstand bremst, Strom fliesst: I = U / R."),
+      h("li", {}, "Eine LED braucht einen Vorwiderstand, sonst brennt sie durch."),
+      h("li", {}, "In Reihe: ein Weg für alle. Parallel: jeder hat einen eigenen Weg."),
+      h("li", {}, "Transistoren sind Schalter. Mit ihnen baut man UND- und ODER-Gatter, die Grundbausteine des Computers."),
+      h("li", {}, "Sensor → Transistor → LED: Eingabe, Verarbeitung, Ausgabe.")),
+    h("button", {class:"btn primary", type:"button", onclick:() => go("home")}, "Zurück zur Stationskarte"));
+  window.scrollTo(0, 0);
+}
+
+function route(r){
+  current = r;
+  const m = /^level-(\d)$/.exec(r || "");
+  if (m && +m[1] >= 1 && +m[1] <= 7 && unlocked(+m[1])) renderLevel(+m[1]);
+  else if (r === "finale" && state.final) renderFinale();
+  else { current = "home"; renderHome(); }
+}
+function go(r){ route(r); try { if (location.hash.slice(1) !== current) location.hash = current; } catch(e) {} }
+window.addEventListener("hashchange", () => { const r = location.hash.slice(1) || "home"; if (r !== current) route(r); });
+
+/* ---------- Design-Umschalter, Lehrperson, Reset ---------- */
+function setVariant(v){
+  state.variant = v; save();
+  document.documentElement.dataset.variant = v;
+  document.querySelectorAll(".seg[aria-label='Design wählen'] button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v));
+  if (current === "home") renderHome();
+}
+document.querySelectorAll(".seg[aria-label='Design wählen'] button").forEach(b => b.onclick = () => setVariant(b.dataset.v));
+const teacherBtn = document.getElementById("teacherBtn");
+function paintTeacher(){ teacherBtn.textContent = state.teacher ? "Lehrperson: Levels wieder nacheinander" : "Lehrperson: alle Levels öffnen"; }
+teacherBtn.onclick = () => { state.teacher = !state.teacher; save(); paintTeacher(); if (current === "home") renderHome(); };
+const resetWrap = document.getElementById("resetWrap");
+function paintReset(){
+  resetWrap.innerHTML = "";
+  const b = h("button", {class:"btn ghost", type:"button"}, "Fortschritt zurücksetzen");
+  b.onclick = () => {
+    resetWrap.innerHTML = "";
+    resetWrap.append(h("span", {class:"confirm"}, "Wirklich alles löschen?",
+      h("button", {class:"btn ghost", type:"button", onclick:() => { const v = state.variant; state = {variant:v, solved:{}, pred:{}, exp:{}, teacher:false, final:false}; save(); paintTeacher(); renderCode(); paintReset(); go("home"); }}, "Ja, löschen"),
+      h("button", {class:"btn ghost", type:"button", onclick:paintReset}, "Abbrechen")));
+  };
+  resetWrap.append(b);
+}
+
+setVariant(state.variant === "b" ? "b" : "a");
+paintTeacher(); paintReset(); renderCode();
+route(location.hash.slice(1) || "home");
+</script>
+</body>
+</html>
