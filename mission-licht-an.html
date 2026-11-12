@@ -617,7 +617,7 @@ function buildL4(c, done){
   const led = s("path", {d:"M268 108 V84 a12 12 0 0 1 24 0 V108 Z", class:"led"}, svg);
   s("rect", {x:264, y:106, width:32, height:5, rx:1, class:"metal"}, svg);
   const crack = s("path", {d:"M276 76 L283 86 L276 93 L284 102", class:"crack"}, svg); crack.style.display = "none";
-  txt(svg, 302, 92, "LED", "svgtxt", "start");
+  txt(svg, 262, 92, "LED", "svgtxt", "end");
   const smoke = s("g", {class:"smoke"}, svg);
   [[278,70],[285,64],[274,60]].forEach(([x,y]) => s("circle", {cx:x, cy:y, r:7}, smoke));
 
